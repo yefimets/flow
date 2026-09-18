@@ -213,7 +213,7 @@ struct ShortcutsView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                Text("⌥ is the modifier for everything. Hold ⌥ on its own to show this sheet, let go to hide it. Esc closes it.")
+                Text("Hold ⌥ on its own to show this sheet, let go to hide it. Esc closes it.")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
