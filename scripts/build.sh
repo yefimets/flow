@@ -4,7 +4,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 swift build -c release 2>&1 | grep -E 'error|Build' || true
-IDENTITY=$(security find-identity -v -p codesigning | grep -oE '"(Developer ID Application|Apple Development): [^"]+"' | head -1 | tr -d '"' || true)
+# Apple Development first: every Xcode user has one, and switching identities would re-trigger the grant.
+IDENTITY=$(security find-identity -v -p codesigning | grep -oE '"Apple Development: [^"]+"' | head -1 | tr -d '"' || true)
+[ -z "$IDENTITY" ] && IDENTITY=$(security find-identity -v -p codesigning | grep -oE '"Developer ID Application: [^"]+"' | head -1 | tr -d '"' || true)
 if [ -n "$IDENTITY" ]; then
   codesign --force --options runtime --sign "$IDENTITY" .build/release/flow
   echo "signed .build/release/flow with: $IDENTITY"
