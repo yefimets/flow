@@ -91,8 +91,8 @@ swift build -c release
 
 | Keys | Action |
 | --- | --- |
-| ⌥ 1 … 9 | Switch to that flow. The next number creates it |
-| ⌥ ⇧ 1 … 9 | Move the focused window to that flow, tile it there, and follow it |
+| ⌥ 1 … 9 | Switch to that flow, creating it and any missing ones in between |
+| ⌥ ⇧ 1 … 9 | Move the focused window to that flow (created if needed), tile it there, and follow it |
 | ⌥ N | New flow |
 | ⌥ ⇧ W | Remove the current flow and close its windows |
 | ⌥ ← ↓ ↑ → | Focus the window in that direction |

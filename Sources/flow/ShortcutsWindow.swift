@@ -85,7 +85,7 @@ private struct Section {
 
 private let sections: [Section] = [
     Section(title: "Flows", items: [
-        Shortcut(keys: [["⌥", "1"], ["⌥", "9"]], text: "Switch to flow 1 … 9. The next number creates it"),
+        Shortcut(keys: [["⌥", "1"], ["⌥", "9"]], text: "Switch to flow 1 … 9, creating it if it does not exist"),
         Shortcut(keys: [["⌥", "⇧", "1"], ["⌥", "⇧", "9"]], text: "Move the window to flow 1 … 9 and follow it"),
         Shortcut(keys: [["⌥", "N"]], text: "New flow"),
         Shortcut(keys: [["⌥", "⇧", "W"]], text: "Remove the flow and close its windows"),

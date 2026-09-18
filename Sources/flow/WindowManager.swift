@@ -594,11 +594,17 @@ final class WindowManager {
         status?.update()
     }
 
+    /// Makes sure flows 1…n exist, creating the missing ones, so ⌥9 works when only four flows exist.
+    private func ensureWorkspaces(upTo n: Int) {
+        guard n >= 1, n <= Self.maxWorkspaces, n > workspaces.count else { return }
+        let created = (workspaces.count + 1)...n
+        for k in created { workspaces.append(Workspace(number: k)) }
+        log("flow\(created.count == 1 ? "" : "s") \(created.map(String.init).joined(separator: ", ")) created")
+        status?.update()
+    }
+
     private func switchWorkspace(to n: Int) {
-        if n == workspaces.count + 1, n <= Self.maxWorkspaces {
-            newWorkspace()
-            return
-        }
+        ensureWorkspaces(upTo: n)
         guard n >= 1, n <= workspaces.count else { return }
         guard n != activeWorkspace else { return }
         lastWorkspaceSwitch = Date()
@@ -625,12 +631,7 @@ final class WindowManager {
 
     private func moveFocused(toWorkspace n: Int) {
         guard let w = focused, n >= 1, n != w.workspace else { return }
-        if n == workspaces.count + 1, n <= Self.maxWorkspaces {
-            // Moving to the next number creates that workspace, without switching to it.
-            workspaces.append(Workspace(number: n))
-            log("flow \(n) created")
-            status?.update()
-        }
+        ensureWorkspaces(upTo: n)
         guard n <= workspaces.count else { return }
         // A window moved on purpose goes into the grid there, unless a rule keeps it floating.
         let keepTiled = !w.ruleFloat
