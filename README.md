@@ -61,7 +61,7 @@ open into flows, two per flow side by side, and shows the shortcuts sheet once.
 
 ```bash
 git clone https://github.com/yefimets/flow && cd flow
-swift build -c release
+scripts/build.sh      # swift build + a stable code signature, so the Accessibility grant survives rebuilds
 .build/release/flow
 ```
 
