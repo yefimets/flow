@@ -202,15 +202,10 @@ struct ShortcutsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "option").font(.system(size: 20, weight: .bold))
-                            Text("Flow").font(.system(size: 22, weight: .bold, design: .rounded))
-                        }
-                        Text("⌥ is the modifier for everything. Hold ⌥ on its own to show this sheet, let go to hide it. Esc closes it.")
-                            .font(.system(size: 12)).foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .center) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "option").font(.system(size: 20, weight: .bold))
+                        Text("Flow").font(.system(size: 22, weight: .bold, design: .rounded))
                     }
                     Spacer()
                     Button(action: close) {
@@ -218,7 +213,11 @@ struct ShortcutsView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.bottom, 4)
+                Text("⌥ is the modifier for everything. Hold ⌥ on its own to show this sheet, let go to hide it. Esc closes it.")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 4)
                 ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(section.title.uppercased())
