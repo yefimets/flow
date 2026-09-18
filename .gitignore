@@ -1,0 +1,9 @@
+.build/
+build/
+.swiftpm/
+*.xcodeproj
+.DS_Store
+flow.log
+Resources/Logos/*.svg
+Resources/Logos/render
+Resources/Logos/*-black.svg
