@@ -177,6 +177,9 @@ final class WindowManager {
         let ruleFloat: Bool
         var bundleID = ""
         var title = ""
+        /// Process the window belonged to. A slot is only handed to a window of a *new* process of the
+        /// same app, so a plain close never makes the next window of a running app inherit it.
+        var pid: pid_t = 0
     }
     private var remembered: [CGWindowID: Placement] = [:]
     /// Slots of windows whose app quit, keyed by bundle id. When the app comes back (an update during
@@ -449,7 +452,7 @@ final class WindowManager {
         var byApp: [String: [[String: Any]]] = [:]
         for (bundle, list) in rememberedByApp {
             byApp[bundle] = list.map { p in
-                var d: [String: Any] = ["workspace": p.workspace, "tiled": p.tiled, "title": p.title,
+                var d: [String: Any] = ["workspace": p.workspace, "tiled": p.tiled, "title": p.title, "pid": Int(p.pid),
                                         "minWidth": p.minSize.width, "minHeight": p.minSize.height, "priority": p.priority]
                 if let c = p.column { d["column"] = c }
                 if let r = p.row { d["row"] = r }
@@ -497,6 +500,7 @@ final class WindowManager {
                         priority: d["priority"] as? Double ?? 0, ruleFloat: false)
                     p.bundleID = bundle
                     p.title = d["title"] as? String ?? ""
+                    p.pid = pid_t(d["pid"] as? Int ?? 0)
                     return p
                 }
             }
@@ -763,7 +767,7 @@ final class WindowManager {
             app.observedWindows.insert(id)
         }
 
-        if let p = remembered[id] ?? adoptPlacement(bundleID: app.bundleID, title: w.title) {
+        if let p = remembered[id] ?? adoptPlacement(bundleID: app.bundleID, title: w.title, pid: app.pid) {
             // Back from a lock, a Space switch, a minimise, or an app relaunch: same workspace, same slot.
             let ws = workspace(min(p.workspace, workspaces.count))
             w.minSize = p.minSize
@@ -808,9 +812,11 @@ final class WindowManager {
     }
 
     /// A slot left behind by a window of the same app that quit. Prefers a matching title.
-    private func adoptPlacement(bundleID: String, title: String) -> Placement? {
+    private func adoptPlacement(bundleID: String, title: String, pid: pid_t) -> Placement? {
         guard var list = rememberedByApp[bundleID], !list.isEmpty else { return nil }
-        let index = list.firstIndex { !$0.title.isEmpty && $0.title == title } ?? 0
+        // Only a relaunched app (new process) inherits slots; the running app's new windows never do.
+        guard let index = list.firstIndex(where: { !$0.title.isEmpty && $0.title == title && $0.pid != pid })
+            ?? list.firstIndex(where: { $0.pid != pid }) else { return nil }
         let p = list.remove(at: index)
         rememberedByApp[bundleID] = list.isEmpty ? nil : list
         log("adopt  \(title.prefix(40)) takes the slot of the \(bundleID) window that quit")
@@ -827,8 +833,9 @@ final class WindowManager {
             minSize: w.minSize, priority: w.priority, ruleFloat: w.ruleFloat)
         placement.bundleID = apps[w.pid]?.bundleID ?? ""
         placement.title = w.title
+        placement.pid = w.pid
         remembered[w.id] = placement
-        if reason == "app quit" || reason == "gone", !placement.bundleID.isEmpty {
+        if reason == "app quit", !placement.bundleID.isEmpty {
             rememberedByApp[placement.bundleID, default: []].append(placement)
         }
         removeFromGrid(w)
