@@ -28,7 +28,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         let count = manager.workspaceCount
         let active = manager.activeWorkspace
 
-        for n in 1...count {
+        for n in manager.flowNumbers {
             let windows = manager.windowCount(inWorkspace: n)
             let label = "Flow \(n)" + (windows > 0 ? "  ·  \(windows) window\(windows == 1 ? "" : "s")" : "")
             let mi = NSMenuItem(title: label, action: #selector(switchWorkspace(_:)), keyEquivalent: "\(n)")
@@ -42,7 +42,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
         let move = NSMenuItem(title: "Move Window to Flow", action: nil, keyEquivalent: "")
         let sub = NSMenu()
-        for n in 1...count where n != active {
+        for n in manager.flowNumbers where n != active {
             let mi = NSMenuItem(title: "Flow \(n)", action: #selector(moveWindow(_:)), keyEquivalent: "\(n)")
             mi.keyEquivalentModifierMask = [.option, .shift]
             mi.tag = n

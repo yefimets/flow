@@ -128,7 +128,8 @@ final class WindowManager {
 
     private var apps: [pid_t: AppEntry] = [:]
     private var windows: [CGWindowID: Window] = [:]
-    private var workspaces: [Workspace] = [Workspace(number: 1)]
+    /// Flows by number. Numbers need not be continuous: ⌥9 with only four flows creates flow 9 alone.
+    private var workspaces: [Int: Workspace] = [1: Workspace(number: 1)]
     private(set) var activeWorkspace = 1
     private var focusedID: CGWindowID?
     private var border: BorderOverlay
@@ -315,7 +316,7 @@ final class WindowManager {
     /// Captures every window of a workspace to ~/Desktop/flow-screenshots, one PNG per window.
     /// Uses the window ID, so parked and covered windows are captured whole.
     private func screenshot(workspace n: Int) {
-        guard n >= 1, n <= workspaces.count else { log("screenshot: no flow \(n)"); return }
+        guard workspaces[n] != nil else { log("screenshot: no flow \(n)"); return }
         let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Desktop/flow-screenshots")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let stamp: String = {
@@ -380,7 +381,6 @@ final class WindowManager {
             for (i, pair) in pairs.enumerated() {
                 let n = i + 1
                 guard n <= Self.maxWorkspaces else { break }
-                if n > workspaces.count { workspaces.append(Workspace(number: n)) }
                 let ws = workspace(n)
                 for w in pair {
                     removeFromGrid(w)
@@ -444,7 +444,7 @@ final class WindowManager {
             wins[String(w.id)] = d
         }
         var grids: [String: Any] = [:]
-        for ws in workspaces {
+        for ws in workspaces.values {
             for (display, g) in ws.grids {
                 grids["\(ws.number):\(display)"] = ["columnRatio": g.columnRatio, "rowRatios": g.columns.map(\.rowRatio)]
             }
@@ -460,7 +460,7 @@ final class WindowManager {
                 return d
             }
         }
-        let state: [String: Any] = ["workspaces": workspaces.count, "active": activeWorkspace, "windows": wins,
+        let state: [String: Any] = ["workspaces": workspaces.count, "flows": flowNumbers, "active": activeWorkspace, "windows": wins,
                                     "grids": grids, "byApp": byApp]
         do {
             let data = try JSONSerialization.data(withJSONObject: state, options: [.prettyPrinted, .sortedKeys])
@@ -473,9 +473,15 @@ final class WindowManager {
     private func loadState() {
         guard let data = try? Data(contentsOf: Self.statePath),
               let s = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
-        let count = min(max(s["workspaces"] as? Int ?? 1, 1), Self.maxWorkspaces)
-        workspaces = (1...count).map(Workspace.init(number:))
-        activeWorkspace = min(max(s["active"] as? Int ?? 1, 1), count)
+        var numbers = (s["flows"] as? [Int] ?? []).filter { $0 >= 1 && $0 <= Self.maxWorkspaces }
+        if numbers.isEmpty {
+            let count = min(max(s["workspaces"] as? Int ?? 1, 1), Self.maxWorkspaces)
+            numbers = Array(1...count)
+        }
+        workspaces = Dictionary(uniqueKeysWithValues: Set(numbers).map { ($0, Workspace(number: $0)) })
+        let count = numbers.count
+        let wanted = s["active"] as? Int ?? 1
+        activeWorkspace = workspaces[wanted] != nil ? wanted : flowNumbers.first ?? 1
         if let wins = s["windows"] as? [String: [String: Any]] {
             for (key, d) in wins {
                 guard let id = CGWindowID(key) else { continue }
@@ -513,7 +519,7 @@ final class WindowManager {
         for (key, d) in savedGrids {
             let parts = key.split(separator: ":")
             guard parts.count == 2, let n = Int(parts[0]), let display = CGDirectDisplayID(parts[1]),
-                  n >= 1, n <= workspaces.count, let grid = workspace(n).grids[display] else { continue }
+                  let grid = workspaces[n]?.grids[display] else { continue }
             if let r = d["columnRatio"] as? Double { grid.columnRatio = CGFloat(r) }
             if let rows = d["rowRatios"] as? [Double] {
                 for (i, r) in rows.enumerated() where i < grid.columns.count { grid.columns[i].rowRatio = CGFloat(r) }
@@ -527,13 +533,24 @@ final class WindowManager {
 
     var workspaceCount: Int { workspaces.count }
 
+    /// Existing flow numbers, ascending.
+    var flowNumbers: [Int] { workspaces.keys.sorted() }
+
     func windowCount(inWorkspace n: Int) -> Int {
         windows.values.filter { $0.workspace == n }.count
     }
 
-    private var active: Workspace { workspaces[activeWorkspace - 1] }
+    private var active: Workspace { workspace(activeWorkspace) }
 
-    private func workspace(_ n: Int) -> Workspace { workspaces[n - 1] }
+    /// The flow with that number, created on demand.
+    private func workspace(_ n: Int) -> Workspace {
+        if let ws = workspaces[n] { return ws }
+        let ws = Workspace(number: n)
+        workspaces[n] = ws
+        log("flow \(n) created")
+        status?.update()
+        return ws
+    }
 
     private func workspace(of w: Window) -> Workspace { workspace(w.workspace) }
 
@@ -542,22 +559,24 @@ final class WindowManager {
         return workspace(of: w).grids[display]
     }
 
+    /// The lowest unused number, or nil when all nine exist.
+    private var nextFreeFlowNumber: Int? {
+        (1...Self.maxWorkspaces).first { workspaces[$0] == nil }
+    }
+
     @discardableResult
     private func newWorkspace() -> Int? {
-        guard workspaces.count < Self.maxWorkspaces else {
+        guard let n = nextFreeFlowNumber else {
             log("flow: already at the maximum of \(Self.maxWorkspaces)")
             return nil
         }
-        let n = workspaces.count + 1
-        workspaces.append(Workspace(number: n))
-        log("flow \(n) created")
         switchWorkspace(to: n)
         return n
     }
 
-    /// Removes the active workspace and closes the windows in it. A window that refuses to close
-    /// (an unsaved-changes dialog, say) moves to the previous workspace instead, so nothing is lost.
-    /// Later workspaces renumber down so the numbers stay 1..n.
+    /// Removes the active flow and closes the windows in it. A window that refuses to close
+    /// (an unsaved-changes dialog, say) moves to the nearest other flow instead, so nothing is lost.
+    /// Other flows keep their numbers.
     func removeCurrentWorkspace() {
         guard workspaces.count > 1 else { return }
         let n = activeWorkspace
@@ -566,17 +585,16 @@ final class WindowManager {
             if let button = AX.element(w.ax, kAXCloseButtonAttribute) { AX.perform(button, kAXPressAction) }
         }
         log("flow \(n): closing \(inside.count) window\(inside.count == 1 ? "" : "s")")
-        // Give the apps a moment to close, then move whatever is still open and drop the workspace.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
             self?.finishRemovingWorkspace(n)
         }
     }
 
     private func finishRemovingWorkspace(_ n: Int) {
-        guard workspaces.count > 1, n <= workspaces.count else { return }
+        guard workspaces.count > 1, let ws = workspaces[n] else { return }
         reconcile()
-        let target = n > 1 ? n - 1 : 2
-        let ws = workspace(n)
+        let others = flowNumbers.filter { $0 != n }
+        guard let target = others.last(where: { $0 < n }) ?? others.first else { return }
         let dest = workspace(target)
         for w in windows.values where w.workspace == n {
             let keepTiled = w.tiled || w.overflow
@@ -586,26 +604,15 @@ final class WindowManager {
         }
         ws.overflow.removeAll()
         switchWorkspace(to: target)
-        workspaces.remove(at: n - 1)
-        for (i, ws) in workspaces.enumerated() { ws.number = i + 1 }
-        for w in windows.values where w.workspace > n { w.workspace -= 1 }
-        if activeWorkspace > n { activeWorkspace -= 1 }
+        workspaces.removeValue(forKey: n)
         log("flow \(n) removed")
         status?.update()
-    }
-
-    /// Makes sure flows 1…n exist, creating the missing ones, so ⌥9 works when only four flows exist.
-    private func ensureWorkspaces(upTo n: Int) {
-        guard n >= 1, n <= Self.maxWorkspaces, n > workspaces.count else { return }
-        let created = (workspaces.count + 1)...n
-        for k in created { workspaces.append(Workspace(number: k)) }
-        log("flow\(created.count == 1 ? "" : "s") \(created.map(String.init).joined(separator: ", ")) created")
-        status?.update()
+        scheduleSave()
     }
 
     private func switchWorkspace(to n: Int) {
-        ensureWorkspaces(upTo: n)
-        guard n >= 1, n <= workspaces.count else { return }
+        guard n >= 1, n <= Self.maxWorkspaces else { return }
+        _ = workspace(n)
         guard n != activeWorkspace else { return }
         lastWorkspaceSwitch = Date()
         for w in windows.values where w.workspace == activeWorkspace { hide(w) }
@@ -630,9 +637,8 @@ final class WindowManager {
     }
 
     private func moveFocused(toWorkspace n: Int) {
-        guard let w = focused, n >= 1, n != w.workspace else { return }
-        ensureWorkspaces(upTo: n)
-        guard n <= workspaces.count else { return }
+        guard let w = focused, n >= 1, n <= Self.maxWorkspaces, n != w.workspace else { return }
+        _ = workspace(n)
         // A window moved on purpose goes into the grid there, unless a rule keeps it floating.
         let keepTiled = !w.ruleFloat
         let oldWorkspace = workspace(of: w)
@@ -770,7 +776,7 @@ final class WindowManager {
 
         if let p = remembered[id] ?? adoptPlacement(bundleID: app.bundleID, title: w.title, pid: app.pid) {
             // Back from a lock, a Space switch, a minimise, or an app relaunch: same workspace, same slot.
-            let ws = workspace(min(p.workspace, workspaces.count))
+            let ws = workspace(min(max(p.workspace, 1), Self.maxWorkspaces))
             w.minSize = p.minSize
             w.priority = p.priority
             w.ruleFloat = p.ruleFloat
@@ -956,7 +962,7 @@ final class WindowManager {
 
     private func screensChanged() {
         let ids = Set(Display.all().map(\.id))
-        for ws in workspaces {
+        for ws in workspaces.values {
             for (id, grid) in ws.grids where !ids.contains(id) {
                 ws.grids.removeValue(forKey: id)
                 // A display that came back under a new ID (common after sleep) keeps its whole grid.

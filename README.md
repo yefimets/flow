@@ -91,7 +91,7 @@ scripts/build.sh      # swift build + a stable code signature, so the Accessibil
 
 | Keys | Action |
 | --- | --- |
-| ⌥ 1 … 9 | Switch to that flow, creating it and any missing ones in between |
+| ⌥ 1 … 9 | Switch to that flow, creating it if it does not exist. Numbers need not be continuous |
 | ⌥ ⇧ 1 … 9 | Move the focused window to that flow (created if needed), tile it there, and follow it |
 | ⌥ N | New flow |
 | ⌥ ⇧ W | Remove the current flow and close its windows |
@@ -125,7 +125,7 @@ on the current flow, that one comes forward instead. Picking a specific window f
 Window menu or Mission Control always follows it.
 
 Removing a flow closes the windows in it. A window that stays open because its app asked about
-unsaved changes moves to the previous flow instead, so nothing is stranded.
+unsaved changes moves to the nearest other flow instead, so nothing is stranded. Other flows keep their numbers.
 
 ## Configuration
 
