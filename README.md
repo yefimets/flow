@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yefimets/flow/releases/download/v0.1.2/Flow-0.1.2.zip"><img src="https://img.shields.io/badge/Download_Flow-0.1.2-7AA2F7?style=for-the-badge&logo=apple&logoColor=white" alt="Download Flow 0.1.2"></a>
+  <a href="https://github.com/yefimets/flow/releases/download/v0.2.0/Flow-0.2.0.zip"><img src="https://img.shields.io/badge/Download_Flow-0.2.0-7AA2F7?style=for-the-badge&logo=apple&logoColor=white" alt="Download Flow 0.2.0"></a>
   <img src="https://img.shields.io/badge/macOS-13%2B-black" alt="macOS 13+">
   <img src="https://img.shields.io/badge/Swift-5.9-orange" alt="Swift 5.9">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT"></a>
@@ -19,7 +19,7 @@
 
 ---
 
-**Latest release: [0.1.2](https://github.com/yefimets/flow/releases/tag/v0.1.2)** · [changelog](CHANGELOG.md) · [download Flow.zip](https://github.com/yefimets/flow/releases/latest/download/Flow-0.1.2.zip)
+**Latest release: [0.2.0](https://github.com/yefimets/flow/releases/tag/v0.2.0)** · [changelog](CHANGELOG.md) · [download Flow.zip](https://github.com/yefimets/flow/releases/latest/download/Flow-0.2.0.zip)
 
 Flow treats your screen as a set of **flows**: a flow is one piece of work, with the two to four
 windows it needs, laid out in a grid. You jump between flows with a number key. An AI agent can do the
