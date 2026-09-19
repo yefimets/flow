@@ -320,6 +320,7 @@ final class WindowManager {
         case .listFlows:
             for n in flowNumbers { log("flows  \(flowLabel(n))\(n == activeWorkspace ? " (active)" : "") · \(windowCount(inWorkspace: n)) window\(windowCount(inWorkspace: n) == 1 ? "" : "s")") }
         case .voiceFile(let path): VoiceController.shared.handle(wavPath: path)
+        case .voiceKey: status?.askForOpenRouterKey()
         case .reload:
             config = Config.load()
             border.apply(config: config)

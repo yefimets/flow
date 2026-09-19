@@ -148,8 +148,9 @@ the failing test", and `type_text` for anything else with keyboard focus.
 
 ## Voice: talk to Flow
 
-Hold ⌥ and speak, let go, and Flow does it. The recording is transcribed on your Mac by whisper.cpp
-(the model file downloads once, 150 MB for `base`),
+Hold ⌥ and speak, let go, and Flow does it. The recording is transcribed by `google/gemini-2.5-flash`
+through OpenRouter (or on your Mac by whisper.cpp with `"transcriber": "whisper"`; that model file downloads
+once, 150 MB for `base`),
 the text goes to an agent model with a closed, typed set of tools (switch or create flows, move windows,
 focus, swap, float, fullscreen, open a browser, terminal, app or URL, search the web, create a note in
 Apple Notes, type text and press keys in the focused app, start an agent in a repository, send it an
@@ -157,11 +158,15 @@ instruction, screenshot a flow, say something),
 and the job just gets done. Flow only speaks up, in a small HUD, when it needs one clarifying question. Anything the model returns that does not decode
 into one of those tools is refused, so it can never run arbitrary code.
 
-Add your OpenRouter key to the config, or set `OPENROUTER_API_KEY`:
+Both models run on your own OpenRouter account: pick **Voice: Add OpenRouter Key…** in the menu bar
+(or run `flow cmd voicekey`), paste a key from [openrouter.ai/keys](https://openrouter.ai/keys), and it is
+saved into the config. The config keys, all optional apart from `apiKey` (`OPENROUTER_API_KEY` in the
+environment works too):
 
 ```json
-"voice": { "apiKey": "sk-or-…", "transcriber": "whisper", "whisperModel": "base", "language": "auto",
-           "agentModel": "google/gemini-2.5-flash", "speak": false, "name": "Flow" }
+"voice": { "apiKey": "sk-or-…", "transcriber": "openrouter", "transcribeModel": "google/gemini-2.5-flash",
+           "agentModel": "google/gemini-2.5-flash", "whisperModel": "base", "language": "auto",
+           "speak": false, "name": "Flow" }
 ```
 
 With a key present, holding ⌥ records instead of showing the shortcuts sheet (⌥/ still opens it). macOS

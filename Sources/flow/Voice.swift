@@ -4,12 +4,13 @@ import SwiftUI
 
 // MARK: - Configuration
 
-/// Settings for the voice agent. It speaks as "Flow". The API key never goes into logs or the repository:
-/// it is read from the config file or the OPENROUTER_API_KEY environment variable.
+/// Settings for the voice agent. It speaks as "Flow". The API key is the user's own OpenRouter key,
+/// entered from the menu bar or written into the config file (or OPENROUTER_API_KEY in the environment).
+/// It never goes into logs or the repository.
 struct VoiceConfig {
     var apiKey: String = ProcessInfo.processInfo.environment["OPENROUTER_API_KEY"] ?? ""
-    /// "whisper" runs on this Mac (default); "openrouter" sends the audio to `transcribeModel`.
-    var transcriber = "whisper"
+    /// "openrouter" (default) sends the audio to `transcribeModel`; "whisper" runs whisper.cpp on this Mac.
+    var transcriber = "openrouter"
     /// whisper.cpp model size: tiny, base, small, medium, large-v3-turbo. Larger is slower and better.
     var whisperModel = "base"
     /// Spoken language for whisper, or "auto".
@@ -452,8 +453,18 @@ final class VoiceController {
     }
 
     private func transcribe(wav: Data) async throws -> String {
+        // Silence gate for both transcribers: a silent clip is never sent anywhere or paid for.
+        let samples = WhisperTranscriber.samples(fromWAV: wav)
+        let level = WhisperTranscriber.level(of: samples)
+        guard level > 0.004 else {
+            log("voice: skipped, audio level \(String(format: "%.4f", level)) is silence")
+            return ""
+        }
         guard config.transcriber == "whisper" else {
-            return try await OpenRouter.transcribe(apiKey: config.apiKey, model: config.transcribeModel, wav: wav)
+            let started = Date()
+            let text = try await OpenRouter.transcribe(apiKey: config.apiKey, model: config.transcribeModel, wav: wav)
+            log("transcribe: \(config.transcribeModel), \(String(format: "%.1f", Double(samples.count) / 16000))s of audio in \(String(format: "%.2f", Date().timeIntervalSince(started)))s")
+            return text
         }
         let name = config.whisperModel
         if !FileManager.default.fileExists(atPath: WhisperTranscriber.modelURL(name).path) {
@@ -461,12 +472,6 @@ final class VoiceController {
         }
         _ = try await WhisperTranscriber.shared.ensureModel(name) { _ in }
         try WhisperTranscriber.shared.load(model: name)
-        let samples = WhisperTranscriber.samples(fromWAV: wav)
-        let level = WhisperTranscriber.level(of: samples)
-        guard level > 0.004 else {
-            log("whisper: skipped, audio level \(String(format: "%.4f", level)) is silence")
-            return ""
-        }
         let started = Date()
         let text = try WhisperTranscriber.shared.transcribe(samples: samples, language: config.language == "auto" ? nil : config.language)
         log("whisper: \(String(format: "%.1f", Double(samples.count) / 16000))s of audio in \(String(format: "%.2f", Date().timeIntervalSince(started)))s")

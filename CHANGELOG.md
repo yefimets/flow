@@ -3,7 +3,10 @@
 ## Unreleased (voice branch)
 
 ### Voice agent
-- Hold ⌥ to talk. On-device transcription with whisper.cpp (Metal), model downloaded once.
+- Hold ⌥ to talk. Transcription by `google/gemini-2.5-flash` through OpenRouter; whisper.cpp on this Mac
+  (Metal, model downloaded once) as an option. Silent clips are dropped before anything is sent.
+- The user's own OpenRouter key: **Voice: Add OpenRouter Key…** in the menu bar or `flow cmd voicekey`.
+- The typed tool loop runs inside Flow; the app talks to nothing but OpenRouter.
 - An agent model on OpenRouter picks from a closed set of typed tools: flows, focus, swap, float,
   fullscreen, browser, terminal, apps, URLs, web search, Apple Notes, typing and keys, screenshots.
 - Silent by default; it only speaks up to ask a clarifying question.

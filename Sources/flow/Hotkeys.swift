@@ -19,6 +19,7 @@ enum Action {
     case shortcuts
     case jev(String)
     case voiceFile(String)
+    case voiceKey
     case agent(repo: String, name: String?)
     case listFlows
     case typeText(String)

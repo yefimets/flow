@@ -115,6 +115,15 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         colour.submenu = colours
         menu.addItem(colour)
 
+        let voice = VoiceController.shared.config
+        let key = NSMenuItem(title: voice.enabled ? "Voice: Change OpenRouter Key…" : "Voice: Add OpenRouter Key…",
+                             action: #selector(askKey), keyEquivalent: "")
+        key.toolTip = voice.enabled ? "Hold ⌥ and speak. Transcription \(voice.transcriber == "whisper" ? "on this Mac" : "by \(voice.transcribeModel)"), agent \(voice.agentModel)."
+                                    : "Talking to Flow needs your own OpenRouter key."
+        key.target = self
+        menu.addItem(key)
+        menu.addItem(.separator())
+
         let sheet = NSMenuItem(title: "Keyboard Shortcuts…", action: #selector(showShortcuts), keyEquivalent: "/")
         sheet.keyEquivalentModifierMask = [.option]
         sheet.target = self
@@ -137,6 +146,37 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func showShortcuts() { manager?.perform(.shortcuts) }
+    @objc private func askKey() { askForOpenRouterKey() }
+
+    /// Asks for the user's OpenRouter key, saves it into the config and reloads. Pasting is the expected
+    /// way in; the field hides what is typed and the key is never logged.
+    func askForOpenRouterKey() {
+        let alert = NSAlert()
+        alert.messageText = "OpenRouter key for Flow's voice agent"
+        alert.informativeText = "Hold ⌥ and speak: the recording is transcribed and acted on by models billed to your own OpenRouter account. Create a key at openrouter.ai/keys and paste it here. It is stored in \(Config.path.path)."
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Get a Key…")
+        let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
+        field.placeholderString = "sk-or-…"
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        NSApp.activate(ignoringOtherApps: true)
+        let response = alert.runModal()
+        switch response {
+        case .alertFirstButtonReturn:
+            let key = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else { return }
+            Config.saveVoice("apiKey", key)
+            manager?.perform(.reload)
+            update()
+        case .alertThirdButtonReturn:
+            NSWorkspace.shared.open(URL(string: "https://openrouter.ai/keys")!)
+            askForOpenRouterKey()
+        default:
+            break
+        }
+    }
     @objc private func toggleHud() { if let m = manager { m.setOptionHud(!m.optionHudEnabled) } }
 
     static let presets: [(String, String)] = [

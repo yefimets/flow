@@ -5,7 +5,7 @@ let commandNotification = Notification.Name("dev.flow.command")
 /// `flow cmd <name> [n]` posts a command to the running instance and exits.
 func sendCommand(_ args: [String]) -> Never {
     guard let name = args.first else {
-        print("usage: flow cmd <agent PATH [NAME] | send N TEXT | type TEXT | flows | flow N | move N | new | remove | screenshot [N] | focus DIR | swap DIR | float | fullscreen | columns | terminal | close | reload | quit>")
+        print("usage: flow cmd <agent PATH [NAME] | send N TEXT | type TEXT | voicekey | flows | flow N | move N | new | remove | screenshot [N] | focus DIR | swap DIR | float | fullscreen | columns | terminal | close | reload | quit>")
         exit(2)
     }
     var info: [String: String] = ["name": name]
@@ -29,6 +29,7 @@ func action(fromCommand name: String, arg: String?) -> Action? {
     case "shortcuts": return .shortcuts
     case "ask", "jev": return arg.map { .jev($0) }
     case "voicefile": return arg.map { .voiceFile($0) }
+    case "voicekey": return .voiceKey
     case "flows": return .listFlows
     case "type": return arg.map { .typeText($0) }
     case "send":

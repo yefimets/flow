@@ -91,11 +91,28 @@ struct Config {
             obj = existing
         }
         obj[key] = value
+        write(obj, key: key, shown: "\(value)")
+    }
+
+    /// Writes one key of the "voice" object, keeping the other voice settings. The value is not logged.
+    static func saveVoice(_ key: String, _ value: Any) {
+        var obj: [String: Any] = [:]
+        if let data = try? Data(contentsOf: path),
+           let existing = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            obj = existing
+        }
+        var voice = obj["voice"] as? [String: Any] ?? [:]
+        voice[key] = value
+        obj["voice"] = voice
+        write(obj, key: "voice.\(key)", shown: "(hidden)")
+    }
+
+    private static func write(_ obj: [String: Any], key: String, shown: String) {
         do {
             try FileManager.default.createDirectory(at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
             let data = try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys])
             try data.write(to: path)
-            log("config: saved \(key) = \(value)")
+            log("config: saved \(key) = \(shown)")
         } catch {
             log("config: could not save \(path.path): \(error)")
         }
