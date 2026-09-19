@@ -143,30 +143,30 @@ The flow is named after the repository and the menu shows its status, read from 
 **working** while Claude Code shows its spinner, **waiting** when it stopped, which means it needs you or
 is done, **stopped** when the terminal closed. When an agent on another flow is waiting, a dot appears
 next to the flow number in the menu bar. The command run in the terminal is `agentCommand` in the config,
-`claude` by default. Jev has the same abilities: "start an agent in the flow repo", "tell flow 3 to fix
+`claude` by default. The voice agent has the same abilities: "start an agent in the flow repo", "tell flow 3 to fix
 the failing test", and `type_text` for anything else with keyboard focus.
 
-## Voice: talk to Jev
+## Voice: talk to Flow
 
-Hold ⌥ and speak, let go, and Jev does it. The recording is transcribed on your Mac by whisper.cpp
+Hold ⌥ and speak, let go, and Flow does it. The recording is transcribed on your Mac by whisper.cpp
 (the model file downloads once, 150 MB for `base`),
 the text goes to an agent model with a closed, typed set of tools (switch or create flows, move windows,
 focus, swap, float, fullscreen, open a browser, terminal, app or URL, search the web, create a note in
 Apple Notes, type text and press keys in the focused app, start an agent in a repository, send it an
 instruction, screenshot a flow, say something),
-and the job just gets done. Jev only speaks up, in a small HUD, when it needs one clarifying question. Anything the model returns that does not decode
+and the job just gets done. Flow only speaks up, in a small HUD, when it needs one clarifying question. Anything the model returns that does not decode
 into one of those tools is refused, so it can never run arbitrary code.
 
 Add your OpenRouter key to the config, or set `OPENROUTER_API_KEY`:
 
 ```json
 "voice": { "apiKey": "sk-or-…", "transcriber": "whisper", "whisperModel": "base", "language": "auto",
-           "agentModel": "google/gemini-2.5-flash", "speak": false, "name": "Jev" }
+           "agentModel": "google/gemini-2.5-flash", "speak": false, "name": "Flow" }
 ```
 
 With a key present, holding ⌥ records instead of showing the shortcuts sheet (⌥/ still opens it). macOS
 asks for microphone access once. For scripts and tests, text goes straight in with
-`flow cmd jev "create a new flow and open a browser there"`, and a WAV file with `flow cmd voicefile clip.wav`.
+`flow cmd ask "create a new flow and open a browser there"`, and a WAV file with `flow cmd voicefile clip.wav`.
 
 ## Configuration
 

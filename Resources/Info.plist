@@ -13,7 +13,7 @@
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSMicrophoneUsageDescription</key><string>Flow listens while you hold ⌥ so Jev can carry out spoken commands.</string>
+  <key>NSMicrophoneUsageDescription</key><string>Flow listens while you hold ⌥ so Flow can carry out spoken commands.</string>
   <key>NSHumanReadableCopyright</key><string>Flow</string>
 </dict>
 </plist>

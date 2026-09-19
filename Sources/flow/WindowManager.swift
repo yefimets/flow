@@ -200,7 +200,7 @@ final class WindowManager {
     private var expectTiled: (bundleID: String, until: Date)?
     /// Flow waiting for its agent terminal window to appear.
     private var pendingAgentFlow: Int?
-    /// The last things the user did, by key, menu or command, for Jev's context.
+    /// The last things the user did, by key, menu or command, for the agent's context.
     private var recentActions: [(Date, String)] = []
 
     init(config: Config, dryRun: Bool) {
@@ -426,7 +426,7 @@ final class WindowManager {
         case .agent(let repo, _): return "started an agent in \(repo)"
         case .sendToAgent(let n, let text): return "sent to agent on flow \(n): \(text.prefix(60))"
         case .typeText(let text): return "typed: \(text.prefix(60))"
-        case .jev(let text): return "asked Jev: \(text.prefix(80))"
+        case .jev(let text): return "asked Flow: \(text.prefix(80))"
         default: return nil
         }
     }
@@ -476,7 +476,7 @@ final class WindowManager {
         log("agent  sent to flow \(n): \(text.prefix(80))")
     }
 
-    /// Folders under the home directory that contain a git repository, for Jev to pick from.
+    /// Folders under the home directory that contain a git repository, for the agent to pick from.
     private var knownRepos: [String] {
         let home = FileManager.default.homeDirectoryForCurrentUser
         var found: [String] = []
@@ -514,7 +514,7 @@ final class WindowManager {
     // MARK: Jev
 
     /// Runs one typed tool picked by the voice agent.
-    private func run(_ tool: JevTool) {
+    private func run(_ tool: AgentTool) {
         switch tool {
         case .switchFlow(let n): perform(.workspace(n))
         case .moveWindowToFlow(let n): perform(.moveToWorkspace(n))
@@ -533,7 +533,7 @@ final class WindowManager {
                     .map { URL(fileURLWithPath: "\($0)/\(name).app") }.first(where: { FileManager.default.fileExists(atPath: $0.path) }) {
                 NSWorkspace.shared.openApplication(at: url, configuration: .init(), completionHandler: nil)
             } else {
-                log("jev: no app named \(name)")
+                log("agent: no app named \(name)")
             }
         case .openURL(let s):
             if let url = URL(string: s.hasPrefix("http") ? s : "https://\(s)") { NSWorkspace.shared.open(url) }
@@ -551,7 +551,7 @@ final class WindowManager {
         }
     }
 
-    /// What Jev sees about the screen: flows, their windows, and the focused window.
+    /// What the agent sees about the screen: flows, their windows, and the focused window.
     private func describeState() -> String {
         var lines = ["Active flow: \(activeWorkspace). Existing flows: \(flowNumbers.map(String.init).joined(separator: ", "))."]
         for n in flowNumbers {

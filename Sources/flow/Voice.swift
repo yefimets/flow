@@ -4,7 +4,7 @@ import SwiftUI
 
 // MARK: - Configuration
 
-/// Settings for the voice agent, "Jev". The API key never goes into logs or the repository:
+/// Settings for the voice agent. It speaks as "Flow". The API key never goes into logs or the repository:
 /// it is read from the config file or the OPENROUTER_API_KEY environment variable.
 struct VoiceConfig {
     var apiKey: String = ProcessInfo.processInfo.environment["OPENROUTER_API_KEY"] ?? ""
@@ -17,7 +17,7 @@ struct VoiceConfig {
     var transcribeModel = "google/gemini-2.5-flash"
     var agentModel = "google/gemini-2.5-flash"
     var speak = false
-    var name = "Jev"
+    var name = "Flow"
 
     var enabled: Bool { !apiKey.isEmpty }
 
@@ -38,9 +38,9 @@ struct VoiceConfig {
 
 // MARK: - Typed tools
 
-/// Everything Jev is allowed to do, as a closed set of typed commands. The model's JSON is decoded
+/// Everything the agent is allowed to do, as a closed set of typed commands. The model's JSON is decoded
 /// into these; anything that does not decode is refused, so the agent can never run arbitrary code.
-enum JevTool {
+enum AgentTool {
     case switchFlow(Int)
     case moveWindowToFlow(Int)
     case newFlow
@@ -168,7 +168,7 @@ enum OpenRouter {
 
     struct Reply {
         var text: String
-        var calls: [JevTool.Call]
+        var calls: [AgentTool.Call]
         /// The assistant message as returned, replayed into the conversation before tool results.
         var assistantMessage: [String: Any]
     }
@@ -196,7 +196,7 @@ enum OpenRouter {
             throw NSError(domain: "OpenRouter", code: 1, userInfo: [NSLocalizedDescriptionKey: "unexpected response shape"])
         }
         let text = (message["content"] as? String) ?? ""
-        var calls: [JevTool.Call] = []
+        var calls: [AgentTool.Call] = []
         for (i, tc) in (message["tool_calls"] as? [[String: Any]] ?? []).enumerated() {
             guard let fn = tc["function"] as? [String: Any], let name = fn["name"] as? String else { continue }
             var args: [String: Any] = [:]
@@ -327,11 +327,11 @@ struct VoiceHUDView: View {
 
 // MARK: - Controller
 
-/// Hold ⌥ to talk. Release: transcribe, hand the text to Jev, run the typed tools it picks, speak the reply.
+/// Hold ⌥ to talk. Release: transcribe, hand the text to the agent, run the typed tools it picks, speak the reply.
 final class VoiceController {
     static let shared = VoiceController()
     var config = VoiceConfig()
-    var execute: ((JevTool) -> Void)?
+    var execute: ((AgentTool) -> Void)?
     var context: (() -> String)?
 
     private let recorder = Recorder()
@@ -375,7 +375,7 @@ final class VoiceController {
         return turns
     }()
     private static var historyURL: URL {
-        Config.path.deletingLastPathComponent().appendingPathComponent("jev-history.json")
+        Config.path.deletingLastPathComponent().appendingPathComponent("agent-history.json")
     }
 
     private func remember(_ turn: Turn) {
@@ -430,7 +430,7 @@ final class VoiceController {
         enqueue { [self] in await process(wav: wav) }
     }
 
-    /// Text straight to Jev, for scripts and tests: `flow cmd jev "switch to flow 2"`.
+    /// Text straight to the agent, for scripts and tests: `flow cmd ask "switch to flow 2"`.
     func handle(text: String) {
         guard config.enabled else { log("voice: no OpenRouter API key configured"); return }
         hud.show(state: "\(config.name) is thinking…", transcript: text)
@@ -517,7 +517,7 @@ final class VoiceController {
             var actions: [String] = []
             // Tool loop: run what the model asks for, feed the results back, let it continue, at most five rounds.
             for _ in 0..<5 {
-                let reply = try await OpenRouter.chat(apiKey: config.apiKey, model: config.agentModel, messages: messages, tools: JevTool.schema)
+                let reply = try await OpenRouter.chat(apiKey: config.apiKey, model: config.agentModel, messages: messages, tools: AgentTool.schema)
                 if reply.calls.isEmpty {
                     if !reply.text.isEmpty { spoken = reply.text }
                     break
@@ -526,16 +526,16 @@ final class VoiceController {
                 for call in reply.calls {
                     var result = "ok"
                     do {
-                        let tool = try JevTool(call: call)
+                        let tool = try AgentTool(call: call)
                         if case .say(let text) = tool {
                             spoken = text
                             result = "said"
                         } else if case .typeText = tool, !Self.asksToType(transcript) {
                             // Typing only happens when the user asked for it in words; never from inference.
-                            log("jev: refused type_text, the request did not ask to type")
+                            log("agent: refused type_text, the request did not ask to type")
                             result = "refused: the user did not ask to type anything"
                         } else {
-                            log("jev: \(call.name) \(call.arguments)")
+                            log("agent: \(call.name) \(call.arguments)")
                             actions.append(call.arguments.isEmpty ? call.name : "\(call.name)(\(call.arguments.map { "\($0.key)=\($0.value)" }.joined(separator: ", ")))")
                             await MainActor.run { execute?(tool) }
                             ran += 1
@@ -543,7 +543,7 @@ final class VoiceController {
                             result = "done. " + (await MainActor.run { context?() ?? "" })
                         }
                     } catch {
-                        log("jev: refused \(call.name): \(error)")
+                        log("agent: refused \(call.name): \(error)")
                         result = "refused: \(error)"
                     }
                     messages.append(["role": "tool", "tool_call_id": call.id, "content": result])
@@ -552,7 +552,7 @@ final class VoiceController {
             }
             let message = spoken
             remember(Turn(at: Date(), request: transcript, actions: actions, reply: message))
-            log("jev: \(message.isEmpty ? "done (\(ran) tool\(ran == 1 ? "" : "s"))" : message)")
+            log("agent: \(message.isEmpty ? "done (\(ran) tool\(ran == 1 ? "" : "s"))" : message)")
             await MainActor.run {
                 if message.isEmpty {
                     hud.hide(after: 0)
@@ -564,7 +564,7 @@ final class VoiceController {
                 }
             }
         } catch {
-            log("jev: request failed: \(error.localizedDescription)")
+            log("agent: request failed: \(error.localizedDescription)")
             await MainActor.run { hud.show(state: "\(config.name) failed", transcript: transcript, reply: error.localizedDescription); hud.hide(after: 5) }
         }
     }

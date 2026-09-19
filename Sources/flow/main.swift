@@ -27,7 +27,7 @@ func action(fromCommand name: String, arg: String?) -> Action? {
     case "remove": return .removeWorkspace
     case "screenshot": return .screenshot(arg.flatMap(Int.init))
     case "shortcuts": return .shortcuts
-    case "jev": return arg.map { .jev($0) }
+    case "ask", "jev": return arg.map { .jev($0) }
     case "voicefile": return arg.map { .voiceFile($0) }
     case "flows": return .listFlows
     case "type": return arg.map { .typeText($0) }
