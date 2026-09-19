@@ -736,7 +736,16 @@ final class WindowManager {
     /// Chrome does not report AXFullScreen, so this is the check that actually works.
     private func coversDisplay(_ frame: CGRect) -> Bool {
         guard let d = Display.containing(frame.center, in: Display.all()) else { return false }
-        return frame.width >= d.frame.width * 0.98 && frame.height >= d.area.height * 0.98
+        // Touches both side edges and fills the height: a tile never does, thanks to the outer gap.
+        return frame.minX <= d.frame.minX + 1 && frame.maxX >= d.frame.maxX - 1 && frame.height >= d.area.height - 1
+    }
+
+    /// True when a fullscreen Space is in front: something covers the display and the windows we
+    /// track have all but vanished from the on-screen list.
+    private func fullscreenSpaceInFront(onScreen: Set<CGWindowID>) -> Bool {
+        guard windows.count > 1 else { return false }
+        let knownOnScreen = windows.keys.filter { onScreen.contains($0) }.count
+        return knownOnScreen <= 1 && onScreenFullscreenWindow() != nil
     }
 
     private var fullscreenSkipLogged = false
@@ -779,7 +788,9 @@ final class WindowManager {
     private func track(_ el: AXUIElement, app: AppEntry, onScreen: Set<CGWindowID>) -> Bool {
         guard let id = AX.windowID(el), windows[id] == nil else { return false }
         guard isStandard(el), onScreen.contains(id), !AX.isMinimized(el), !AX.isNativeFullscreen(el),
-              let frame = AX.frame(el), frame.width > 50, frame.height > 50, !coversDisplay(frame) else { return false }
+              let frame = AX.frame(el), frame.width > 50, frame.height > 50 else { return false }
+        // A window filling the display while everything else is gone is a fullscreen Space: not ours to tile.
+        if coversDisplay(frame), fullscreenSpaceInFront(onScreen: onScreen) { return false }
 
         let w = Window(id: id, ax: el, pid: app.pid)
         w.naturalSize = frame.size
@@ -984,8 +995,9 @@ final class WindowManager {
             return
         }
         // A native-fullscreen app in front is its own Space: everything else reads as off screen.
-        // Leave the layout alone until the user comes back.
-        if let full = onScreenFullscreenWindow() {
+        // Leave the layout alone until the user comes back. A merely screen-sized window on the
+        // normal Space is different: our other windows are still listed, and relayout fixes it.
+        if fullscreenSpaceInFront(onScreen: onScreen), let full = onScreenFullscreenWindow() {
             if !fullscreenSkipLogged { log("skip   reconcile: \(full) is fullscreen in front; keeping the layout"); fullscreenSkipLogged = true }
             return
         }
