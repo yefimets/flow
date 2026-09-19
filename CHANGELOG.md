@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (voice branch)
+## 0.2.0 — 2026-09-19
 
 ### Voice agent
 - Hold ⌥ to talk. Transcription by `google/gemini-2.5-flash` through OpenRouter; whisper.cpp on this Mac
