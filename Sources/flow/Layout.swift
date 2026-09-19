@@ -49,6 +49,14 @@ final class Grid {
                 preferredColumn: Int? = nil, preferredRow: Int? = nil) -> Bool {
         // A window coming back (after a lock, a Space switch, a minimise) asks for its old slot.
         if let ci = preferredColumn {
+            // Two windows always sit side by side. Stacking them under one remembered column only
+            // happens when the window that used to hold the other column is gone; do not honour that.
+            if columns.count == 1, columns[0].windows.count == 1 {
+                let side = ci < columns[0].origin ? 0 : 1
+                let origin = ci == columns[0].origin ? ci + 1 : ci
+                columns.insert(Column(w, origin: origin), at: side)
+                return true
+            }
             if let c = columns.first(where: { $0.origin == ci }), c.windows.count < Self.maxRows {
                 c.windows.insert(w, at: preferredRow == 0 ? 0 : c.windows.count)
                 return true
