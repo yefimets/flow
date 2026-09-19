@@ -203,6 +203,10 @@ final class WindowManager {
     // MARK: Lifecycle
 
     func start() {
+        VoiceController.shared.config = config.voice
+        VoiceController.shared.execute = { [weak self] tool in self?.run(tool) }
+        VoiceController.shared.context = { [weak self] in self?.describeState() ?? "" }
+        if config.voice.enabled { log("voice: \(config.voice.name) ready, hold ⌥ to talk (\(config.voice.transcribeModel) → \(config.voice.agentModel))") }
         let nc = NSWorkspace.shared.notificationCenter
         nc.addObserver(forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] n in
             guard let app = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
@@ -290,11 +294,17 @@ final class WindowManager {
         case .removeWorkspace: removeCurrentWorkspace()
         case .screenshot(let n): screenshot(workspace: n ?? activeWorkspace)
         case .shortcuts: ShortcutsWindow.shared.toggle()
-        case .holdBegan: if config.optionHud { ShortcutsWindow.shared.holdBegan() }
-        case .holdEnded: ShortcutsWindow.shared.holdEnded()
+        case .holdBegan:
+            if config.voice.enabled { VoiceController.shared.beginHold() }
+            else if config.optionHud { ShortcutsWindow.shared.holdBegan() }
+        case .holdEnded:
+            if config.voice.enabled { VoiceController.shared.endHold() } else { ShortcutsWindow.shared.holdEnded() }
+        case .jev(let text): VoiceController.shared.handle(text: text)
+        case .voiceFile(let path): VoiceController.shared.handle(wavPath: path)
         case .reload:
             config = Config.load()
             border.apply(config: config)
+            VoiceController.shared.config = config.voice
             scheduleRelayout()
         case .quit:
             saveState()
@@ -368,6 +378,49 @@ final class WindowManager {
     private func expectWindow(from bundleID: String?) {
         guard let bundleID else { return }
         expectTiled = (bundleID, Date().addingTimeInterval(8))
+    }
+
+    // MARK: Jev
+
+    /// Runs one typed tool picked by the voice agent.
+    private func run(_ tool: JevTool) {
+        switch tool {
+        case .switchFlow(let n): perform(.workspace(n))
+        case .moveWindowToFlow(let n): perform(.moveToWorkspace(n))
+        case .newFlow: perform(.newWorkspace)
+        case .removeFlow: perform(.removeWorkspace)
+        case .focus(let d): perform(.focus(d))
+        case .swap(let d): perform(.swap(d))
+        case .toggleFloat: perform(.toggleFloat)
+        case .toggleFullscreen: perform(.fullscreen)
+        case .closeWindow: perform(.close)
+        case .openBrowser: perform(.browser)
+        case .openTerminal: perform(.terminal)
+        case .openApp(let name):
+            if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: name)
+                ?? ["/Applications", "/System/Applications", "/System/Applications/Utilities", NSHomeDirectory() + "/Applications"]
+                    .map { URL(fileURLWithPath: "\($0)/\(name).app") }.first(where: { FileManager.default.fileExists(atPath: $0.path) }) {
+                NSWorkspace.shared.openApplication(at: url, configuration: .init(), completionHandler: nil)
+            } else {
+                log("jev: no app named \(name)")
+            }
+        case .openURL(let s):
+            if let url = URL(string: s.hasPrefix("http") ? s : "https://\(s)") { NSWorkspace.shared.open(url) }
+        case .screenshotFlow(let n): perform(.screenshot(n))
+        case .say: break
+        }
+    }
+
+    /// What Jev sees about the screen: flows, their windows, and the focused window.
+    private func describeState() -> String {
+        var lines = ["Active flow: \(activeWorkspace). Existing flows: \(flowNumbers.map(String.init).joined(separator: ", "))."]
+        for n in flowNumbers {
+            let names = windows.values.filter { $0.workspace == n }.sorted { $0.priority > $1.priority }
+                .map { "\(apps[$0.pid]?.name ?? "app"): \($0.title.prefix(40))\($0.floating ? " (floating)" : "")" }
+            if !names.isEmpty { lines.append("Flow \(n): " + names.joined(separator: "; ")) }
+        }
+        if let w = focused { lines.append("Focused: \(apps[w.pid]?.name ?? "app"): \(w.title.prefix(40))") }
+        return lines.joined(separator: "\n")
     }
 
     // MARK: First run
@@ -1277,6 +1330,7 @@ final class WindowManager {
                     focusedID = nil
                 } else if pickedWindow, Date().timeIntervalSince(lastFocusSwitch) > 1 {
                     lastFocusSwitch = Date()
+                    log("follow \(describe(w)) to flow \(w.workspace) (window picked)")
                     switchWorkspace(to: w.workspace)
                     return
                 } else if let local = windows.values.first(where: { $0.pid == w.pid && !$0.hidden && $0.workspace == activeWorkspace }) {
@@ -1296,6 +1350,7 @@ final class WindowManager {
                                   $0.pid == pending.pid && !$0.hidden && $0.workspace == self.activeWorkspace
                               }) else { return }
                         self.lastFocusSwitch = Date()
+                        log("follow app \(pending.pid) to flow \(pending.workspace) (app switch)")
                         self.switchWorkspace(to: pending.workspace)
                     }
                     focusedID = nil

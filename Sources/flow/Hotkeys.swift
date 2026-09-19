@@ -17,6 +17,8 @@ enum Action {
     case removeWorkspace
     case screenshot(Int?)
     case shortcuts
+    case jev(String)
+    case voiceFile(String)
     case holdBegan
     case holdEnded
     case reload

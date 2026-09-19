@@ -9,7 +9,7 @@ func sendCommand(_ args: [String]) -> Never {
         exit(2)
     }
     var info: [String: String] = ["name": name]
-    if args.count > 1 { info["arg"] = args[1] }
+    if args.count > 1 { info["arg"] = args.dropFirst().joined(separator: " ") }
     DistributedNotificationCenter.default().postNotificationName(
         commandNotification, object: nil, userInfo: info, deliverImmediately: true)
     exit(0)
@@ -27,6 +27,8 @@ func action(fromCommand name: String, arg: String?) -> Action? {
     case "remove": return .removeWorkspace
     case "screenshot": return .screenshot(arg.flatMap(Int.init))
     case "shortcuts": return .shortcuts
+    case "jev": return arg.map { .jev($0) }
+    case "voicefile": return arg.map { .voiceFile($0) }
     case "focus": return dir().map { .focus($0) }
     case "swap": return dir().map { .swap($0) }
     case "float": return .toggleFloat
