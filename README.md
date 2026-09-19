@@ -63,7 +63,7 @@ open into flows, two per flow side by side, and shows the shortcuts sheet once.
 
 ```bash
 git clone https://github.com/yefimets/flow && cd flow
-scripts/build.sh      # swift build + a stable code signature, so the Accessibility grant survives rebuilds
+scripts/build.sh      # builds whisper.cpp once (needs cmake), swift build, and a stable code signature
 .build/release/flow
 ```
 
@@ -131,16 +131,19 @@ unsaved changes moves to the nearest other flow instead, so nothing is stranded.
 
 ## Voice: talk to Jev
 
-Hold ⌥ and speak, let go, and Jev does it. The recording goes to a transcription model on OpenRouter,
+Hold ⌥ and speak, let go, and Jev does it. The recording is transcribed on your Mac by whisper.cpp
+(the model file downloads once, 150 MB for `base`),
 the text goes to an agent model with a closed, typed set of tools (switch or create flows, move windows,
-focus, swap, float, fullscreen, open a browser, terminal, app or URL, screenshot a flow, say something),
+focus, swap, float, fullscreen, open a browser, terminal, app or URL, search the web, create a note in
+Apple Notes, type text and press keys in the focused app, screenshot a flow, say something),
 and the job just gets done. Jev only speaks up, in a small HUD, when it needs one clarifying question. Anything the model returns that does not decode
 into one of those tools is refused, so it can never run arbitrary code.
 
 Add your OpenRouter key to the config, or set `OPENROUTER_API_KEY`:
 
 ```json
-"voice": { "apiKey": "sk-or-…", "transcribeModel": "google/gemini-2.5-flash", "agentModel": "google/gemini-2.5-flash", "speak": false, "name": "Jev" }
+"voice": { "apiKey": "sk-or-…", "transcriber": "whisper", "whisperModel": "base", "language": "auto",
+           "agentModel": "google/gemini-2.5-flash", "speak": false, "name": "Jev" }
 ```
 
 With a key present, holding ⌥ records instead of showing the shortcuts sheet (⌥/ still opens it). macOS

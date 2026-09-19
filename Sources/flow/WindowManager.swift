@@ -206,7 +206,11 @@ final class WindowManager {
         VoiceController.shared.config = config.voice
         VoiceController.shared.execute = { [weak self] tool in self?.run(tool) }
         VoiceController.shared.context = { [weak self] in self?.describeState() ?? "" }
-        if config.voice.enabled { log("voice: \(config.voice.name) ready, hold ⌥ to talk (\(config.voice.transcribeModel) → \(config.voice.agentModel))") }
+        if config.voice.enabled {
+            let stt = config.voice.transcriber == "whisper" ? "whisper \(config.voice.whisperModel) on device" : config.voice.transcribeModel
+            log("voice: \(config.voice.name) ready, hold ⌥ to talk (\(stt) → \(config.voice.agentModel))")
+            VoiceController.shared.warmUp()
+        }
         let nc = NSWorkspace.shared.notificationCenter
         nc.addObserver(forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] n in
             guard let app = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
@@ -407,6 +411,13 @@ final class WindowManager {
         case .openURL(let s):
             if let url = URL(string: s.hasPrefix("http") ? s : "https://\(s)") { NSWorkspace.shared.open(url) }
         case .screenshotFlow(let n): perform(.screenshot(n))
+        case .webSearch(let q):
+            var parts = URLComponents(string: "https://www.google.com/search")!
+            parts.queryItems = [URLQueryItem(name: "q", value: q)]
+            expectWindow(from: Launcher.openBrowser(address: parts.url!.absoluteString))
+        case .createNote(let title, let body): Launcher.createNote(title: title, body: body)
+        case .typeText(let text): Launcher.type(text)
+        case .pressKey(let key): Launcher.press(key)
         case .say: break
         }
     }

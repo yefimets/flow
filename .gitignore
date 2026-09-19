@@ -7,3 +7,5 @@ flow.log
 Resources/Logos/*.svg
 Resources/Logos/render
 Resources/Logos/*-black.svg
+Vendor/whisper/lib/
+Vendor/whisper/include/

@@ -8,6 +8,12 @@ import SwiftUI
 /// it is read from the config file or the OPENROUTER_API_KEY environment variable.
 struct VoiceConfig {
     var apiKey: String = ProcessInfo.processInfo.environment["OPENROUTER_API_KEY"] ?? ""
+    /// "whisper" runs on this Mac (default); "openrouter" sends the audio to `transcribeModel`.
+    var transcriber = "whisper"
+    /// whisper.cpp model size: tiny, base, small, medium, large-v3-turbo. Larger is slower and better.
+    var whisperModel = "base"
+    /// Spoken language for whisper, or "auto".
+    var language = "auto"
     var transcribeModel = "google/gemini-2.5-flash"
     var agentModel = "google/gemini-2.5-flash"
     var speak = false
@@ -19,6 +25,9 @@ struct VoiceConfig {
         var v = VoiceConfig()
         guard let d = obj["voice"] as? [String: Any] else { return v }
         if let k = d["apiKey"] as? String, !k.isEmpty { v.apiKey = k }
+        v.transcriber = d["transcriber"] as? String ?? v.transcriber
+        v.whisperModel = d["whisperModel"] as? String ?? v.whisperModel
+        v.language = d["language"] as? String ?? v.language
         v.transcribeModel = d["transcribeModel"] as? String ?? v.transcribeModel
         v.agentModel = d["agentModel"] as? String ?? v.agentModel
         v.speak = d["speak"] as? Bool ?? v.speak
@@ -47,6 +56,10 @@ enum JevTool {
     case openURL(String)
     case screenshotFlow(Int?)
     case say(String)
+    case webSearch(String)
+    case createNote(title: String, body: String)
+    case typeText(String)
+    case pressKey(String)
 
     struct Call { let id: String; let name: String; let arguments: [String: Any] }
 
@@ -88,6 +101,15 @@ enum JevTool {
         case "open_url": self = .openURL(try str("url"))
         case "screenshot_flow": self = .screenshotFlow(call.arguments["flow"] as? Int)
         case "say": self = .say(try str("text"))
+        case "web_search": self = .webSearch(try str("query"))
+        case "create_note": self = .createNote(title: try str("title"), body: (call.arguments["body"] as? String) ?? "")
+        case "type_text": self = .typeText(try str("text"))
+        case "press_key":
+            let key = try str("key").lowercased()
+            guard ["return", "escape", "tab", "find", "address_bar", "select_all", "copy", "paste", "new_tab", "save"].contains(key) else {
+                throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "unknown key \(key)"))
+            }
+            self = .pressKey(key)
         default: throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "unknown tool \(call.name)"))
         }
     }
@@ -118,6 +140,15 @@ enum JevTool {
             tool("screenshot_flow", "Capture every window of a flow to PNG files (current flow if omitted).", ["flow": flow]),
             tool("say", "Tell the user something short. Use it to confirm what you did or to ask for clarification.",
                  ["text": ["type": "string"]], required: ["text"]),
+            tool("web_search", "Open Chrome in the current flow with a Google search for the query.",
+                 ["query": ["type": "string"]], required: ["query"]),
+            tool("create_note", "Create a note in Apple Notes with a title and body text.",
+                 ["title": ["type": "string"], "body": ["type": "string"]], required: ["title"]),
+            tool("type_text", "Type text into whatever has keyboard focus, as if on the keyboard. Focus the right app first.",
+                 ["text": ["type": "string"]], required: ["text"]),
+            tool("press_key", "Press a key in the focused app.",
+                 ["key": ["type": "string", "enum": ["return", "escape", "tab", "find", "address_bar", "select_all", "copy", "paste", "new_tab", "save"]]],
+                 required: ["key"]),
         ]
     }()
 }
@@ -343,9 +374,40 @@ final class VoiceController {
         Task { await ask(transcript: text) }
     }
 
+    /// Loads the whisper model in the background at startup so the first command is not slow.
+    func warmUp() {
+        guard config.transcriber == "whisper" else { return }
+        let name = config.whisperModel
+        Task.detached(priority: .utility) {
+            do {
+                _ = try await WhisperTranscriber.shared.ensureModel(name) { _ in }
+                try WhisperTranscriber.shared.load(model: name)
+            } catch {
+                log("whisper: not ready: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func transcribe(wav: Data) async throws -> String {
+        guard config.transcriber == "whisper" else {
+            return try await OpenRouter.transcribe(apiKey: config.apiKey, model: config.transcribeModel, wav: wav)
+        }
+        let name = config.whisperModel
+        if !FileManager.default.fileExists(atPath: WhisperTranscriber.modelURL(name).path) {
+            await MainActor.run { hud.show(state: "Downloading speech model…") }
+        }
+        _ = try await WhisperTranscriber.shared.ensureModel(name) { _ in }
+        try WhisperTranscriber.shared.load(model: name)
+        let samples = WhisperTranscriber.samples(fromWAV: wav)
+        let started = Date()
+        let text = try WhisperTranscriber.shared.transcribe(samples: samples, language: config.language == "auto" ? nil : config.language)
+        log("whisper: \(String(format: "%.1f", Double(samples.count) / 16000))s of audio in \(String(format: "%.2f", Date().timeIntervalSince(started)))s")
+        return text
+    }
+
     private func process(wav: Data) async {
         do {
-            let text = try await OpenRouter.transcribe(apiKey: config.apiKey, model: config.transcribeModel, wav: wav)
+            let text = try await transcribe(wav: wav)
             guard !text.isEmpty else {
                 await MainActor.run { hud.show(state: "Heard nothing"); hud.hide(after: 1.5) }
                 return
@@ -363,6 +425,8 @@ final class VoiceController {
         let system = """
         You are \(config.name), a voice assistant that operates the user's Mac through Flow, a tiling window manager \
         with numbered flows (workspaces). Do what the user asks by calling tools; call several when the request needs it. \
+        For notes use create_note. For searching the web use web_search. type_text and press_key act on the focused app; \
+        open_app first when you need a particular app to have focus, and wait for the tool result before typing. \
         Do the job silently: do not narrate or confirm. Use `say` only when you cannot proceed and need one \
         clarifying question, in the user's language. Never invent flow numbers the user did not mention.
         Current state:
