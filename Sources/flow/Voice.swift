@@ -405,15 +405,16 @@ final class VoiceController {
                 }
                 if reply.calls.contains(where: { $0.name == "say" }) { break }
             }
-            log("jev: \(spoken.isEmpty ? "done (\(ran) tool\(ran == 1 ? "" : "s"))" : spoken)")
+            let message = spoken
+            log("jev: \(message.isEmpty ? "done (\(ran) tool\(ran == 1 ? "" : "s"))" : message)")
             await MainActor.run {
-                if spoken.isEmpty {
+                if message.isEmpty {
                     hud.hide(after: 0)
                 } else {
                     // Only a question or a refusal reaches the user; a completed job just happens.
-                    hud.show(state: config.name, transcript: transcript, reply: spoken)
+                    hud.show(state: config.name, transcript: transcript, reply: message)
                     hud.hide(after: 5)
-                    if config.speak { synth.startSpeaking(spoken) }
+                    if config.speak { synth.startSpeaking(message) }
                 }
             }
         } catch {
