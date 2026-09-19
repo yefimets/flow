@@ -19,6 +19,8 @@
 
 ---
 
+**Latest release: [0.1.2](https://github.com/yefimets/flow/releases/tag/v0.1.2)** · [changelog](CHANGELOG.md) · [download Flow.zip](https://github.com/yefimets/flow/releases/latest/download/Flow-0.1.2.zip)
+
 Flow treats your screen as a set of **flows**: a flow is one piece of work, with the two to four
 windows it needs, laid out in a grid. You jump between flows with a number key. An AI agent can do the
 same, because everything Flow does is also a command: create a flow, move a window into it, open a
