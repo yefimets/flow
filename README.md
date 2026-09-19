@@ -129,13 +129,31 @@ Window menu or Mission Control always follows it.
 Removing a flow closes the windows in it. A window that stays open because its app asked about
 unsaved changes moves to the nearest other flow instead, so nothing is stranded. Other flows keep their numbers.
 
+## Agent flows
+
+Flow is a cockpit for coding agents. One command puts an agent in its own flow:
+
+```bash
+flow cmd agent ~/code/my-project          # new flow named my-project, terminal running `claude` there
+flow cmd send 3 "run the tests and fix what fails"   # type a line into flow 3's agent and press return
+flow cmd flows                            # every flow with its name and status, in the log
+```
+
+The flow is named after the repository and the menu shows its status, read from the terminal title:
+**working** while Claude Code shows its spinner, **waiting** when it stopped, which means it needs you or
+is done, **stopped** when the terminal closed. When an agent on another flow is waiting, a dot appears
+next to the flow number in the menu bar. The command run in the terminal is `agentCommand` in the config,
+`claude` by default. Jev has the same abilities: "start an agent in the flow repo", "tell flow 3 to fix
+the failing test", and `type_text` for anything else with keyboard focus.
+
 ## Voice: talk to Jev
 
 Hold ⌥ and speak, let go, and Jev does it. The recording is transcribed on your Mac by whisper.cpp
 (the model file downloads once, 150 MB for `base`),
 the text goes to an agent model with a closed, typed set of tools (switch or create flows, move windows,
 focus, swap, float, fullscreen, open a browser, terminal, app or URL, search the web, create a note in
-Apple Notes, type text and press keys in the focused app, screenshot a flow, say something),
+Apple Notes, type text and press keys in the focused app, start an agent in a repository, send it an
+instruction, screenshot a flow, say something),
 and the job just gets done. Jev only speaks up, in a small HUD, when it needs one clarifying question. Anything the model returns that does not decode
 into one of those tools is refused, so it can never run arbitrary code.
 

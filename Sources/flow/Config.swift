@@ -34,6 +34,8 @@ struct Config {
     var optionHud = true
     /// Voice agent settings ("voice" object in the file). With an API key, holding ⌥ talks to Jev instead.
     var voice = VoiceConfig()
+    /// Command run in the terminal of an agent flow (`flow cmd agent <repo>`).
+    var agentCommand = "claude"
     /// Bundle identifiers whose windows always float.
     var floatApps: [String] = [
         "com.apple.systempreferences",
@@ -70,6 +72,7 @@ struct Config {
         c.newWindowsFloat = obj["newWindowsFloat"] as? Bool ?? c.newWindowsFloat
         c.optionHud = obj["optionHud"] as? Bool ?? c.optionHud
         c.voice = VoiceConfig.load(from: obj)
+        c.agentCommand = obj["agentCommand"] as? String ?? c.agentCommand
         c.terminal = obj["terminal"] as? String ?? c.terminal
         if let radii = obj["borderRadii"] as? [String: NSNumber] {
             for (bundle, r) in radii { c.borderRadii[bundle] = CGFloat(r.doubleValue) }

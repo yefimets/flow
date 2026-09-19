@@ -46,6 +46,11 @@ final class Window {
 
 final class Workspace {
     var number: Int
+    /// Optional name, shown in the menu. Agent flows are named after their repository.
+    var name: String?
+    /// Repository an agent was started in, and the terminal window running it.
+    var agentRepo: String?
+    var agentWindow: CGWindowID?
     var grids: [CGDirectDisplayID: Grid] = [:]
     /// Windows waiting for a grid slot, oldest first.
     var overflow: [Window] = []
@@ -193,6 +198,8 @@ final class WindowManager {
     private var firstRun = false
     /// An app we just asked for a window (alt+return, alt+b): its next window is tiled, not floated.
     private var expectTiled: (bundleID: String, until: Date)?
+    /// Flow waiting for its agent terminal window to appear.
+    private var pendingAgentFlow: Int?
 
     init(config: Config, dryRun: Bool) {
         self.config = config
@@ -304,6 +311,11 @@ final class WindowManager {
         case .holdEnded:
             if config.voice.enabled { VoiceController.shared.endHold() } else { ShortcutsWindow.shared.holdEnded() }
         case .jev(let text): VoiceController.shared.handle(text: text)
+        case .agent(let repo, let name): startAgent(repo: repo, name: name)
+        case .typeText(let text): Launcher.type(text)
+        case .sendToAgent(let n, let text): sendToAgent(flow: n, text: text)
+        case .listFlows:
+            for n in flowNumbers { log("flows  \(flowLabel(n))\(n == activeWorkspace ? " (active)" : "") · \(windowCount(inWorkspace: n)) window\(windowCount(inWorkspace: n) == 1 ? "" : "s")") }
         case .voiceFile(let path): VoiceController.shared.handle(wavPath: path)
         case .reload:
             config = Config.load()
@@ -384,6 +396,80 @@ final class WindowManager {
         expectTiled = (bundleID, Date().addingTimeInterval(8))
     }
 
+    // MARK: Agent flows
+
+    /// Spinner glyphs Claude Code puts in the terminal title while it is working.
+    private static let workingGlyphs: Set<Character> = ["◐", "◓", "◑", "◒", "·", "✢", "✳", "✶", "✻", "✽", "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
+    /// A new flow named after the repository, with a terminal running the agent command in it.
+    func startAgent(repo: String, name: String?) {
+        let path = (repo as NSString).expandingTildeInPath
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue else {
+            log("agent: no such folder \(path)")
+            return
+        }
+        guard let n = nextFreeFlowNumber else { log("agent: no free flow"); return }
+        let ws = workspace(n)
+        ws.name = name ?? (path as NSString).lastPathComponent
+        ws.agentRepo = path
+        switchWorkspace(to: n)
+        pendingAgentFlow = n
+        expectWindow(from: Launcher.openTerminal(config: config, directory: path, command: config.agentCommand))
+        log("agent  starting '\(config.agentCommand)' in \(path) on flow \(n) (\(ws.name ?? ""))")
+        scheduleSave()
+    }
+
+    /// Types a line into the agent terminal of a flow and presses return: a prompt for the agent.
+    func sendToAgent(flow n: Int, text: String) {
+        guard let ws = workspaces[n], let id = ws.agentWindow, let w = windows[id] else {
+            log("agent: flow \(n) has no agent terminal")
+            return
+        }
+        if n != activeWorkspace { switchWorkspace(to: n) }
+        focus(w)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            Launcher.type(text)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { Launcher.press("return") }
+        }
+        log("agent  sent to flow \(n): \(text.prefix(80))")
+    }
+
+    /// Folders under the home directory that contain a git repository, for Jev to pick from.
+    private var knownRepos: [String] {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        var found: [String] = []
+        for root in [home, home.appendingPathComponent("Developer"), home.appendingPathComponent("Projects"), home.appendingPathComponent("code")] {
+            guard let names = try? FileManager.default.contentsOfDirectory(atPath: root.path) else { continue }
+            for name in names where !name.hasPrefix(".") {
+                let dir = root.appendingPathComponent(name)
+                if FileManager.default.fileExists(atPath: dir.appendingPathComponent(".git").path) { found.append(dir.path) }
+            }
+        }
+        return Array(found.prefix(30))
+    }
+
+    /// working / waiting / stopped for an agent flow, from its terminal window title.
+    func agentStatus(_ n: Int) -> String? {
+        guard let ws = workspaces[n], ws.agentRepo != nil else { return nil }
+        guard let id = ws.agentWindow, let w = windows[id] else { return pendingAgentFlow == n ? "starting" : "stopped" }
+        let title = w.title.trimmingCharacters(in: .whitespaces)
+        if let first = title.first, Self.workingGlyphs.contains(first) { return "working" }
+        return "waiting"
+    }
+
+    func flowLabel(_ n: Int) -> String {
+        var label = "Flow \(n)"
+        if let name = workspaces[n]?.name { label += " · \(name)" }
+        if let status = agentStatus(n) { label += " · \(status)" }
+        return label
+    }
+
+    /// True when any agent flow other than the active one is waiting for the user.
+    var agentNeedsAttention: Bool {
+        flowNumbers.contains { $0 != activeWorkspace && agentStatus($0) == "waiting" }
+    }
+
     // MARK: Jev
 
     /// Runs one typed tool picked by the voice agent.
@@ -411,6 +497,8 @@ final class WindowManager {
         case .openURL(let s):
             if let url = URL(string: s.hasPrefix("http") ? s : "https://\(s)") { NSWorkspace.shared.open(url) }
         case .screenshotFlow(let n): perform(.screenshot(n))
+        case .startAgent(let repo, let name): startAgent(repo: repo, name: name)
+        case .sendToAgent(let n, let text): sendToAgent(flow: n, text: text)
         case .webSearch(let q):
             var parts = URLComponents(string: "https://www.google.com/search")!
             parts.queryItems = [URLQueryItem(name: "q", value: q)]
@@ -428,9 +516,13 @@ final class WindowManager {
         for n in flowNumbers {
             let names = windows.values.filter { $0.workspace == n }.sorted { $0.priority > $1.priority }
                 .map { "\(apps[$0.pid]?.name ?? "app"): \($0.title.prefix(40))\($0.floating ? " (floating)" : "")" }
-            if !names.isEmpty { lines.append("Flow \(n): " + names.joined(separator: "; ")) }
+            var head = flowLabel(n)
+            if let repo = workspaces[n]?.agentRepo { head += " (agent in \(repo))" }
+            if !names.isEmpty || workspaces[n]?.name != nil { lines.append(head + ": " + names.joined(separator: "; ")) }
         }
         if let w = focused { lines.append("Focused: \(apps[w.pid]?.name ?? "app"): \(w.title.prefix(40))") }
+        let repos = knownRepos
+        if !repos.isEmpty { lines.append("Repositories on this Mac (use exact paths for start_agent): " + repos.joined(separator: ", ")) }
         return lines.joined(separator: "\n")
     }
 
@@ -507,6 +599,14 @@ final class WindowManager {
             }
             wins[String(w.id)] = d
         }
+        var flowInfo: [String: Any] = [:]
+        for ws in workspaces.values where ws.name != nil || ws.agentRepo != nil {
+            var d: [String: Any] = [:]
+            if let v = ws.name { d["name"] = v }
+            if let v = ws.agentRepo { d["agentRepo"] = v }
+            if let v = ws.agentWindow { d["agentWindow"] = Int(v) }
+            flowInfo[String(ws.number)] = d
+        }
         var grids: [String: Any] = [:]
         for ws in workspaces.values {
             for (display, g) in ws.grids {
@@ -524,7 +624,7 @@ final class WindowManager {
                 return d
             }
         }
-        let state: [String: Any] = ["workspaces": workspaces.count, "flows": flowNumbers, "active": activeWorkspace, "windows": wins,
+        let state: [String: Any] = ["workspaces": workspaces.count, "flows": flowNumbers, "flowInfo": flowInfo, "active": activeWorkspace, "windows": wins,
                                     "grids": grids, "byApp": byApp]
         do {
             let data = try JSONSerialization.data(withJSONObject: state, options: [.prettyPrinted, .sortedKeys])
@@ -543,6 +643,12 @@ final class WindowManager {
             numbers = Array(1...count)
         }
         workspaces = Dictionary(uniqueKeysWithValues: Set(numbers).map { ($0, Workspace(number: $0)) })
+        for (k, d) in s["flowInfo"] as? [String: [String: Any]] ?? [:] {
+            guard let n = Int(k), let ws = workspaces[n] else { continue }
+            ws.name = d["name"] as? String
+            ws.agentRepo = d["agentRepo"] as? String
+            if let id = d["agentWindow"] as? Int { ws.agentWindow = CGWindowID(id) }
+        }
         let count = numbers.count
         let wanted = s["active"] as? Int ?? 1
         activeWorkspace = workspaces[wanted] != nil ? wanted : flowNumbers.first ?? 1
@@ -919,6 +1025,12 @@ final class WindowManager {
             w.priority = Date().timeIntervalSince1970
             tile(w, at: frame.center, in: active, explicit: true)
             focus(w)
+            if let n = pendingAgentFlow, n == activeWorkspace {
+                workspace(n).agentWindow = w.id
+                pendingAgentFlow = nil
+                log("agent  flow \(n) runs in \(describe(w))")
+                status?.update()
+            }
         } else if startupDone, config.newWindowsFloat {
             w.floating = true
             // Apps cascade new windows from their previous one. If that one is parked in the corner,

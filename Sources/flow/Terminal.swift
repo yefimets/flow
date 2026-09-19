@@ -25,19 +25,26 @@ enum Launcher {
         path.flatMap { Bundle(url: URL(fileURLWithPath: $0))?.bundleIdentifier }
     }
 
+    /// A terminal window, optionally in a directory and running a command (for agent flows).
     @discardableResult
-    static func openTerminal(config: Config) -> String? {
+    static func openTerminal(config: Config, directory: String? = nil, command: String? = nil) -> String? {
         guard let name = terminalName(for: config) else {
             log("terminal: nothing installed from \(terminals)")
             return nil
         }
+        let cd = directory.map { "cd '\($0.replacingOccurrences(of: "'", with: "'\\''"))' && " } ?? ""
+        let shellLine = cd + (command ?? "")
+        let quoted = shellLine.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
         switch name {
         case "Terminal":
-            osascript("tell application \"Terminal\"\n do script \"\"\n activate\nend tell")
+            osascript("tell application \"Terminal\"\n do script \"\(quoted)\"\n activate\nend tell")
         case "iTerm", "iTerm2":
-            osascript("tell application \"iTerm\"\n create window with default profile\n activate\nend tell")
+            osascript("tell application \"iTerm\"\n set w to (create window with default profile)\n tell current session of w to write text \"\(quoted)\"\n activate\nend tell")
         default:
-            run("/usr/bin/open", ["-na", name])
+            var args = ["-na", name, "--args"]
+            if let directory { args.append("--working-directory=\(directory)") }
+            if let command { args.append("--command=/bin/zsh -lc '\(command.replacingOccurrences(of: "'", with: "'\\''")); exec /bin/zsh -l'") }
+            run("/usr/bin/open", args)
         }
         return bundleID(atPath: appPath(name))
     }

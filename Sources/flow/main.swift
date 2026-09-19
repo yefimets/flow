@@ -5,7 +5,7 @@ let commandNotification = Notification.Name("dev.flow.command")
 /// `flow cmd <name> [n]` posts a command to the running instance and exits.
 func sendCommand(_ args: [String]) -> Never {
     guard let name = args.first else {
-        print("usage: flow cmd <flow N | move N | new | remove | screenshot [N] | focus DIR | swap DIR | float | fullscreen | columns | terminal | close | reload | quit>")
+        print("usage: flow cmd <agent PATH [NAME] | send N TEXT | type TEXT | flows | flow N | move N | new | remove | screenshot [N] | focus DIR | swap DIR | float | fullscreen | columns | terminal | close | reload | quit>")
         exit(2)
     }
     var info: [String: String] = ["name": name]
@@ -29,6 +29,17 @@ func action(fromCommand name: String, arg: String?) -> Action? {
     case "shortcuts": return .shortcuts
     case "jev": return arg.map { .jev($0) }
     case "voicefile": return arg.map { .voiceFile($0) }
+    case "flows": return .listFlows
+    case "type": return arg.map { .typeText($0) }
+    case "send":
+        guard let arg else { return nil }
+        let parts = arg.split(separator: " ", maxSplits: 1).map(String.init)
+        guard parts.count == 2, let n = Int(parts[0]) else { return nil }
+        return .sendToAgent(flow: n, text: parts[1])
+    case "agent":
+        guard let arg else { return nil }
+        let parts = arg.split(separator: " ", maxSplits: 1).map(String.init)
+        return .agent(repo: parts[0], name: parts.count > 1 ? parts[1] : nil)
     case "focus": return dir().map { .focus($0) }
     case "swap": return dir().map { .swap($0) }
     case "float": return .toggleFloat

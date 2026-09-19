@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased (voice branch)
+
+### Jev, the voice agent
+- Hold ⌥ to talk. On-device transcription with whisper.cpp (Metal), model downloaded once.
+- An agent model on OpenRouter picks from a closed set of typed tools: flows, focus, swap, float,
+  fullscreen, browser, terminal, apps, URLs, web search, Apple Notes, typing and keys, screenshots.
+- Silent by default; it only speaks up to ask a clarifying question.
+- `flow cmd jev TEXT` and `flow cmd voicefile WAV` for scripts and tests.
+
+### Agent flows
+- `flow cmd agent PATH` starts Claude Code in its own named flow; status in the menu from the terminal title.
+- `flow cmd send N TEXT` types an instruction into that agent. `flow cmd type TEXT` types anywhere.
+- Flows are a sparse numbered set: ⌥9 creates only flow 9.
+
 ## 0.1.2 — 2026-09-19
 
 ### Fixed

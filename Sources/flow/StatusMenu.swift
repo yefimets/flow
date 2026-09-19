@@ -19,7 +19,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     func update() {
-        item.button?.title = " \(manager?.activeWorkspace ?? 1)"
+        let attention = manager?.agentNeedsAttention == true ? " •" : ""
+        item.button?.title = " \(manager?.activeWorkspace ?? 1)\(attention)"
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -30,7 +31,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
         for n in manager.flowNumbers {
             let windows = manager.windowCount(inWorkspace: n)
-            let label = "Flow \(n)" + (windows > 0 ? "  ·  \(windows) window\(windows == 1 ? "" : "s")" : "")
+            let label = manager.flowLabel(n) + (windows > 0 && manager.agentStatus(n) == nil ? "  ·  \(windows) window\(windows == 1 ? "" : "s")" : "")
             let mi = NSMenuItem(title: label, action: #selector(switchWorkspace(_:)), keyEquivalent: "\(n)")
             mi.keyEquivalentModifierMask = [.option]
             mi.state = n == active ? .on : .off

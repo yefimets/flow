@@ -57,6 +57,8 @@ enum JevTool {
     case screenshotFlow(Int?)
     case say(String)
     case webSearch(String)
+    case startAgent(repo: String, name: String?)
+    case sendToAgent(flow: Int, text: String)
     case createNote(title: String, body: String)
     case typeText(String)
     case pressKey(String)
@@ -102,6 +104,8 @@ enum JevTool {
         case "screenshot_flow": self = .screenshotFlow(call.arguments["flow"] as? Int)
         case "say": self = .say(try str("text"))
         case "web_search": self = .webSearch(try str("query"))
+        case "start_agent": self = .startAgent(repo: try str("repo"), name: call.arguments["name"] as? String)
+        case "send_to_agent": self = .sendToAgent(flow: try int("flow"), text: try str("text"))
         case "create_note": self = .createNote(title: try str("title"), body: (call.arguments["body"] as? String) ?? "")
         case "type_text": self = .typeText(try str("text"))
         case "press_key":
@@ -140,6 +144,10 @@ enum JevTool {
             tool("screenshot_flow", "Capture every window of a flow to PNG files (current flow if omitted).", ["flow": flow]),
             tool("say", "Tell the user something short. Use it to confirm what you did or to ask for clarification.",
                  ["text": ["type": "string"]], required: ["text"]),
+            tool("start_agent", "Start a coding agent (Claude Code) in a repository: a new flow named after it with a terminal running the agent.",
+                 ["repo": ["type": "string", "description": "Folder path, ~ allowed"], "name": ["type": "string"]], required: ["repo"]),
+            tool("send_to_agent", "Type a message into the agent terminal of a flow and press return, to give the coding agent an instruction.",
+                 ["flow": flow, "text": ["type": "string"]], required: ["flow", "text"]),
             tool("web_search", "Open Chrome in the current flow with a Google search for the query.",
                  ["query": ["type": "string"]], required: ["query"]),
             tool("create_note", "Create a note in Apple Notes with a title and body text.",
@@ -426,6 +434,8 @@ final class VoiceController {
         You are \(config.name), a voice assistant that operates the user's Mac through Flow, a tiling window manager \
         with numbered flows (workspaces). Do what the user asks by calling tools; call several when the request needs it. \
         For notes use create_note. For searching the web use web_search. type_text and press_key act on the focused app; \
+        start_agent needs an existing repository path from the list in the current state; if the user names a project \
+        you cannot match to that list, ask with `say` instead of guessing. send_to_agent talks to an agent flow. \
         open_app first when you need a particular app to have focus, and wait for the tool result before typing. \
         Do the job silently: do not narrate or confirm. Use `say` only when you cannot proceed and need one \
         clarifying question, in the user's language. Never invent flow numbers the user did not mention.
