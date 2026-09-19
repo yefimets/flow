@@ -200,6 +200,8 @@ final class WindowManager {
     private var expectTiled: (bundleID: String, until: Date)?
     /// Flow waiting for its agent terminal window to appear.
     private var pendingAgentFlow: Int?
+    /// The last things the user did, by key, menu or command, for Jev's context.
+    private var recentActions: [(Date, String)] = []
 
     init(config: Config, dryRun: Bool) {
         self.config = config
@@ -288,6 +290,7 @@ final class WindowManager {
     }
 
     func perform(_ action: Action) {
+        if let note = Self.describe(action) { remember(note) }
         switch action {
         case .focus(let d): focusNeighbour(d)
         case .swap(let d): swapNeighbour(d)
@@ -394,6 +397,44 @@ final class WindowManager {
     private func expectWindow(from bundleID: String?) {
         guard let bundleID else { return }
         expectTiled = (bundleID, Date().addingTimeInterval(8))
+    }
+
+    // MARK: Recent actions
+
+    private func remember(_ note: String) {
+        recentActions.append((Date(), note))
+        if recentActions.count > 30 { recentActions.removeFirst(recentActions.count - 30) }
+    }
+
+    private static func describe(_ action: Action) -> String? {
+        switch action {
+        case .focus(let d): return "focused window \(d)"
+        case .swap(let d): return "swapped window \(d)"
+        case .resize(let h, let g): return "\(g ? "grew" : "shrank") the \(h ? "column" : "row")"
+        case .terminal: return "opened a terminal window"
+        case .browser: return "opened a browser window"
+        case .close: return "closed the focused window"
+        case .fullscreen: return "toggled fullscreen"
+        case .toggleFloat: return "toggled floating"
+        case .toggleSplit: return "moved window to the other column"
+        case .swapColumns: return "swapped columns"
+        case .workspace(let n): return "switched to flow \(n)"
+        case .moveToWorkspace(let n): return "moved the focused window to flow \(n)"
+        case .newWorkspace: return "created a new flow"
+        case .removeWorkspace: return "removed the current flow"
+        case .screenshot(let n): return "took screenshots of flow \(n.map(String.init) ?? "current")"
+        case .agent(let repo, _): return "started an agent in \(repo)"
+        case .sendToAgent(let n, let text): return "sent to agent on flow \(n): \(text.prefix(60))"
+        case .typeText(let text): return "typed: \(text.prefix(60))"
+        case .jev(let text): return "asked Jev: \(text.prefix(80))"
+        default: return nil
+        }
+    }
+
+    /// Newest last, with how long ago, for the agent's context.
+    var recentActionsText: String {
+        let f = DateFormatter(); f.dateFormat = "HH:mm"
+        return recentActions.suffix(12).map { "\(f.string(from: $0.0)) \($0.1)" }.joined(separator: "\n")
     }
 
     // MARK: Agent flows
@@ -523,6 +564,8 @@ final class WindowManager {
         if let w = focused { lines.append("Focused: \(apps[w.pid]?.name ?? "app"): \(w.title.prefix(40))") }
         let repos = knownRepos
         if !repos.isEmpty { lines.append("Repositories on this Mac (use exact paths for start_agent): " + repos.joined(separator: ", ")) }
+        let recent = recentActionsText
+        if !recent.isEmpty { lines.append("Recent actions by the user or by you, newest last:\n" + recent) }
         return lines.joined(separator: "\n")
     }
 

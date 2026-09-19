@@ -338,6 +338,52 @@ final class VoiceController {
     private let hud = VoiceHUD()
     private let synth = NSSpeechSynthesizer()
     private var recording = false
+    /// Requests run strictly one after another, so a voice command and a typed one cannot interleave.
+    private var queue: Task<Void, Never>?
+
+    private func enqueue(_ work: @escaping () async -> Void) {
+        let previous = queue
+        queue = Task {
+            await previous?.value
+            await work()
+        }
+    }
+
+    /// Whisper's markers for silence and noise, and anything without a real word.
+    static func isBlank(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.isEmpty { return true }
+        if t.hasPrefix("[") && t.hasSuffix("]") { return true }   // [BLANK_AUDIO], [inaudible], [Music]
+        if t.hasPrefix("(") && t.hasSuffix(")") { return true }   // (silence), (wind blowing)
+        return !t.contains { $0.isLetter }
+    }
+
+    /// Previous exchanges: what the user asked, which tools ran, what Jev replied. Kept on disk.
+    private struct Turn: Codable { let at: Date; let request: String; let actions: [String]; let reply: String }
+    private var history: [Turn] = {
+        guard let data = try? Data(contentsOf: VoiceController.historyURL),
+              let turns = try? JSONDecoder().decode([Turn].self, from: data) else { return [] }
+        return turns
+    }()
+    private static var historyURL: URL {
+        Config.path.deletingLastPathComponent().appendingPathComponent("jev-history.json")
+    }
+
+    private func remember(_ turn: Turn) {
+        history.append(turn)
+        if history.count > 50 { history.removeFirst(history.count - 50) }
+        if let data = try? JSONEncoder().encode(history) { try? data.write(to: Self.historyURL) }
+    }
+
+    private var historyText: String {
+        let f = DateFormatter(); f.dateFormat = "HH:mm"
+        return history.suffix(8).map { t in
+            var line = "[\(f.string(from: t.at))] user: \(t.request)"
+            if !t.actions.isEmpty { line += " → you: \(t.actions.joined(separator: ", "))" }
+            if !t.reply.isEmpty { line += " → you said: \(t.reply)" }
+            return line
+        }.joined(separator: "\n")
+    }
 
     func beginHold() {
         guard config.enabled, !recording else { return }
@@ -364,7 +410,7 @@ final class VoiceController {
             return
         }
         hud.show(state: "Transcribing…")
-        Task { await process(wav: wav) }
+        enqueue { [self] in await process(wav: wav) }
     }
 
     /// A WAV file through the whole pipeline, for tests: `flow cmd voicefile clip.wav`.
@@ -372,14 +418,14 @@ final class VoiceController {
         guard config.enabled else { log("voice: no OpenRouter API key configured"); return }
         guard let wav = try? Data(contentsOf: URL(fileURLWithPath: wavPath)) else { log("voice: cannot read \(wavPath)"); return }
         hud.show(state: "Transcribing…")
-        Task { await process(wav: wav) }
+        enqueue { [self] in await process(wav: wav) }
     }
 
     /// Text straight to Jev, for scripts and tests: `flow cmd jev "switch to flow 2"`.
     func handle(text: String) {
         guard config.enabled else { log("voice: no OpenRouter API key configured"); return }
         hud.show(state: "\(config.name) is thinking…", transcript: text)
-        Task { await ask(transcript: text) }
+        enqueue { [self] in await ask(transcript: text) }
     }
 
     /// Loads the whisper model in the background at startup so the first command is not slow.
@@ -416,7 +462,7 @@ final class VoiceController {
     private func process(wav: Data) async {
         do {
             let text = try await transcribe(wav: wav)
-            guard !text.isEmpty else {
+            guard !Self.isBlank(text) else {
                 await MainActor.run { hud.show(state: "Heard nothing"); hud.hide(after: 1.5) }
                 return
             }
@@ -437,10 +483,15 @@ final class VoiceController {
         start_agent needs an existing repository path from the list in the current state; if the user names a project \
         you cannot match to that list, ask with `say` instead of guessing. send_to_agent talks to an agent flow. \
         open_app first when you need a particular app to have focus, and wait for the tool result before typing. \
+        Only use type_text when the user explicitly asks to type, write or enter something. \
         Do the job silently: do not narrate or confirm. Use `say` only when you cannot proceed and need one \
-        clarifying question, in the user's language. Never invent flow numbers the user did not mention.
+        clarifying question, in the user's language. Never invent flow numbers the user did not mention. \
+        Use the conversation history and the recent actions to resolve references like "again", "that one", \
+        "the other flow" and "go back" (the flow that was active before the last switch).
         Current state:
         \(context?() ?? "")
+        Conversation so far, oldest first:
+        \(historyText.isEmpty ? "(none)" : historyText)
         """
         var messages: [[String: Any]] = [
             ["role": "system", "content": system],
@@ -449,6 +500,7 @@ final class VoiceController {
         do {
             var spoken = ""
             var ran = 0
+            var actions: [String] = []
             // Tool loop: run what the model asks for, feed the results back, let it continue, at most five rounds.
             for _ in 0..<5 {
                 let reply = try await OpenRouter.chat(apiKey: config.apiKey, model: config.agentModel, messages: messages, tools: JevTool.schema)
@@ -466,6 +518,7 @@ final class VoiceController {
                             result = "said"
                         } else {
                             log("jev: \(call.name) \(call.arguments)")
+                            actions.append(call.arguments.isEmpty ? call.name : "\(call.name)(\(call.arguments.map { "\($0.key)=\($0.value)" }.joined(separator: ", ")))")
                             await MainActor.run { execute?(tool) }
                             ran += 1
                             try? await Task.sleep(nanoseconds: 500_000_000)
@@ -480,6 +533,7 @@ final class VoiceController {
                 if reply.calls.contains(where: { $0.name == "say" }) { break }
             }
             let message = spoken
+            remember(Turn(at: Date(), request: transcript, actions: actions, reply: message))
             log("jev: \(message.isEmpty ? "done (\(ran) tool\(ran == 1 ? "" : "s"))" : message)")
             await MainActor.run {
                 if message.isEmpty {
