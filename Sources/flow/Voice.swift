@@ -367,7 +367,7 @@ final class VoiceController {
         return !t.contains { $0.isLetter }
     }
 
-    /// Previous exchanges: what the user asked, which tools ran, what Jev replied. Kept on disk.
+    /// Previous exchanges: what the user asked, which tools ran, what the agent replied. Kept on disk.
     private struct Turn: Codable { let at: Date; let request: String; let actions: [String]; let reply: String }
     private var history: [Turn] = {
         guard let data = try? Data(contentsOf: VoiceController.historyURL),

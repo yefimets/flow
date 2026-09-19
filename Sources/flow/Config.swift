@@ -32,7 +32,7 @@ struct Config {
     var newWindowsFloat = true
     /// Holding ⌥ on its own shows the shortcuts sheet until it is released.
     var optionHud = true
-    /// Voice agent settings ("voice" object in the file). With an API key, holding ⌥ talks to Jev instead.
+    /// Voice agent settings ("voice" object in the file). With an API key, holding ⌥ talks to the agent instead.
     var voice = VoiceConfig()
     /// Command run in the terminal of an agent flow (`flow cmd agent <repo>`).
     var agentCommand = "claude"

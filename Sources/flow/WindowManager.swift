@@ -511,7 +511,7 @@ final class WindowManager {
         flowNumbers.contains { $0 != activeWorkspace && agentStatus($0) == "waiting" }
     }
 
-    // MARK: Jev
+    // MARK: Voice agent
 
     /// Runs one typed tool picked by the voice agent.
     private func run(_ tool: AgentTool) {
