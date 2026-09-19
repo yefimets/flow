@@ -349,12 +349,21 @@ final class VoiceController {
         }
     }
 
+    /// The request must contain a typing verb before type_text is allowed.
+    static func asksToType(_ text: String) -> Bool {
+        let t = text.lowercased()
+        return ["type", "write", "enter", "input", "fill", "напиши", "введи", "надрукуй", "wpisz", "napisz", "wprowadź"].contains { t.contains($0) }
+    }
+
     /// Whisper's markers for silence and noise, and anything without a real word.
     static func isBlank(_ text: String) -> Bool {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.isEmpty { return true }
         if t.hasPrefix("[") && t.hasSuffix("]") { return true }   // [BLANK_AUDIO], [inaudible], [Music]
         if t.hasPrefix("(") && t.hasSuffix(")") { return true }   // (silence), (wind blowing)
+        // Whisper's favourite inventions on near-silence.
+        let junk: Set<String> = ["you", "thank you", "thanks for watching", "bye", "thank you for watching", "the end", "so"]
+        if junk.contains(t.lowercased().trimmingCharacters(in: .punctuationCharacters)) { return true }
         return !t.contains { $0.isLetter }
     }
 
@@ -453,6 +462,11 @@ final class VoiceController {
         _ = try await WhisperTranscriber.shared.ensureModel(name) { _ in }
         try WhisperTranscriber.shared.load(model: name)
         let samples = WhisperTranscriber.samples(fromWAV: wav)
+        let level = WhisperTranscriber.level(of: samples)
+        guard level > 0.004 else {
+            log("whisper: skipped, audio level \(String(format: "%.4f", level)) is silence")
+            return ""
+        }
         let started = Date()
         let text = try WhisperTranscriber.shared.transcribe(samples: samples, language: config.language == "auto" ? nil : config.language)
         log("whisper: \(String(format: "%.1f", Double(samples.count) / 16000))s of audio in \(String(format: "%.2f", Date().timeIntervalSince(started)))s")
@@ -516,6 +530,10 @@ final class VoiceController {
                         if case .say(let text) = tool {
                             spoken = text
                             result = "said"
+                        } else if case .typeText = tool, !Self.asksToType(transcript) {
+                            // Typing only happens when the user asked for it in words; never from inference.
+                            log("jev: refused type_text, the request did not ask to type")
+                            result = "refused: the user did not ask to type anything"
                         } else {
                             log("jev: \(call.name) \(call.arguments)")
                             actions.append(call.arguments.isEmpty ? call.name : "\(call.name)(\(call.arguments.map { "\($0.key)=\($0.value)" }.joined(separator: ", ")))")

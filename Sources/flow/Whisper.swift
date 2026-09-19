@@ -80,10 +80,18 @@ final class WhisperTranscriber {
             guard rc == 0 else { throw NSError(domain: "Whisper", code: 5, userInfo: [NSLocalizedDescriptionKey: "whisper_full failed (\(rc))"]) }
             let n = whisper_full_n_segments(ctx)
             for i in 0..<n {
+                // Whisper invents words on silence; its own no-speech estimate flags those segments.
+                if whisper_full_get_segment_no_speech_prob(ctx, i) > 0.6 { continue }
                 if let seg = whisper_full_get_segment_text(ctx, i) { text += String(cString: seg) }
             }
         }
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Root mean square level of the samples; speech is well above 0.01, silence and room noise below.
+    static func level(of samples: [Float]) -> Float {
+        guard !samples.isEmpty else { return 0 }
+        return (samples.reduce(0) { $0 + $1 * $1 } / Float(samples.count)).squareRoot()
     }
 
     /// 16-bit PCM WAV (as recorded) to float samples.
