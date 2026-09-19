@@ -813,7 +813,15 @@ final class WindowManager {
             app.observedWindows.insert(id)
         }
 
-        if let p = remembered[id] ?? adoptPlacement(bundleID: app.bundleID, title: w.title, pid: app.pid) {
+        // Slots left by a quit app go only to windows of its relaunch, in the first two minutes;
+        // after that the memory is stale and dropped. A window you asked for (alt+b, alt+return) never adopts.
+        let requested = expectTiled.map { $0.bundleID == app.bundleID && Date() < $0.until } ?? false
+        let sinceLaunch = app.app.launchDate.map { Date().timeIntervalSince($0) } ?? .infinity
+        if sinceLaunch > 120, rememberedByApp[app.bundleID] != nil {
+            rememberedByApp[app.bundleID] = nil
+        }
+        let adopted = (!requested && sinceLaunch <= 120) ? adoptPlacement(bundleID: app.bundleID, title: w.title, pid: app.pid) : nil
+        if let p = remembered[id] ?? adopted {
             // Back from a lock, a Space switch, a minimise, or an app relaunch: same workspace, same slot.
             let ws = workspace(min(max(p.workspace, 1), Self.maxWorkspaces))
             w.minSize = p.minSize
