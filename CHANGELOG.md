@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 — 2026-09-19
+
+### Fixed
+- When a window leaves a flow and takes a whole column with it, the two windows left stacked in the other
+  column spread into two columns on their own; the upper one goes left.
+
 ## 0.1.1 — 2026-09-19
 
 ### Fixed
