@@ -10,7 +10,7 @@ struct VoiceConfig {
     var apiKey: String = ProcessInfo.processInfo.environment["OPENROUTER_API_KEY"] ?? ""
     var transcribeModel = "google/gemini-2.5-flash"
     var agentModel = "google/gemini-2.5-flash"
-    var speak = true
+    var speak = false
     var name = "Jev"
 
     var enabled: Bool { !apiKey.isEmpty }
@@ -363,8 +363,8 @@ final class VoiceController {
         let system = """
         You are \(config.name), a voice assistant that operates the user's Mac through Flow, a tiling window manager \
         with numbered flows (workspaces). Do what the user asks by calling tools; call several when the request needs it. \
-        Always finish with a short `say` confirming what you did, in the user's language. If the request is unclear, \
-        ask with `say` and do nothing else. Never invent flow numbers the user did not mention.
+        Do the job silently: do not narrate or confirm. Use `say` only when you cannot proceed and need one \
+        clarifying question, in the user's language. Never invent flow numbers the user did not mention.
         Current state:
         \(context?() ?? "")
         """
@@ -405,12 +405,16 @@ final class VoiceController {
                 }
                 if reply.calls.contains(where: { $0.name == "say" }) { break }
             }
-            let summary = spoken.isEmpty ? (ran > 0 ? "Done." : "I did not understand that.") : spoken
-            log("jev: \(summary)")
+            log("jev: \(spoken.isEmpty ? "done (\(ran) tool\(ran == 1 ? "" : "s"))" : spoken)")
             await MainActor.run {
-                hud.show(state: config.name, transcript: transcript, reply: summary)
-                hud.hide(after: 5)
-                if config.speak { synth.startSpeaking(summary) }
+                if spoken.isEmpty {
+                    hud.hide(after: 0)
+                } else {
+                    // Only a question or a refusal reaches the user; a completed job just happens.
+                    hud.show(state: config.name, transcript: transcript, reply: spoken)
+                    hud.hide(after: 5)
+                    if config.speak { synth.startSpeaking(spoken) }
+                }
             }
         } catch {
             log("jev: request failed: \(error.localizedDescription)")

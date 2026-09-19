@@ -134,13 +134,13 @@ unsaved changes moves to the nearest other flow instead, so nothing is stranded.
 Hold ⌥ and speak, let go, and Jev does it. The recording goes to a transcription model on OpenRouter,
 the text goes to an agent model with a closed, typed set of tools (switch or create flows, move windows,
 focus, swap, float, fullscreen, open a browser, terminal, app or URL, screenshot a flow, say something),
-and the reply is spoken back and shown in a small HUD. Anything the model returns that does not decode
+and the job just gets done. Jev only speaks up, in a small HUD, when it needs one clarifying question. Anything the model returns that does not decode
 into one of those tools is refused, so it can never run arbitrary code.
 
 Add your OpenRouter key to the config, or set `OPENROUTER_API_KEY`:
 
 ```json
-"voice": { "apiKey": "sk-or-…", "transcribeModel": "google/gemini-2.5-flash", "agentModel": "google/gemini-2.5-flash", "speak": true, "name": "Jev" }
+"voice": { "apiKey": "sk-or-…", "transcribeModel": "google/gemini-2.5-flash", "agentModel": "google/gemini-2.5-flash", "speak": false, "name": "Jev" }
 ```
 
 With a key present, holding ⌥ records instead of showing the shortcuts sheet (⌥/ still opens it). macOS
