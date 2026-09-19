@@ -487,10 +487,14 @@ final class WindowManager {
                 guard let id = CGWindowID(key) else { continue }
                 var frame: CGRect?
                 if let f = d["frame"] as? [Double], f.count == 4 { frame = CGRect(x: f[0], y: f[1], width: f[2], height: f[3]) }
+                var minSize = CGSize(width: d["minWidth"] as? Double ?? 0, height: d["minHeight"] as? Double ?? 0)
+                if let display = Display.all().first, minSize.width >= display.area.width * 0.9 || minSize.height >= display.area.height * 0.9 {
+                    minSize = .zero  // learned while the window was fullscreen; meaningless
+                }
                 remembered[id] = Placement(
                     workspace: d["workspace"] as? Int ?? 1, tiled: d["tiled"] as? Bool ?? true,
                     column: d["column"] as? Int, row: d["row"] as? Int, frame: frame,
-                    minSize: CGSize(width: d["minWidth"] as? Double ?? 0, height: d["minHeight"] as? Double ?? 0),
+                    minSize: minSize,
                     priority: d["priority"] as? Double ?? 0, ruleFloat: d["ruleFloat"] as? Bool ?? false)
             }
         }
@@ -728,6 +732,30 @@ final class WindowManager {
         return ids
     }
 
+    /// A window covering (nearly) the whole display is in native fullscreen or zoomed to the screen.
+    /// Chrome does not report AXFullScreen, so this is the check that actually works.
+    private func coversDisplay(_ frame: CGRect) -> Bool {
+        guard let d = Display.containing(frame.center, in: Display.all()) else { return false }
+        return frame.width >= d.frame.width * 0.98 && frame.height >= d.area.height * 0.98
+    }
+
+    private var fullscreenSkipLogged = false
+
+    /// Name of a layer-0 window on screen that covers the display, if any.
+    private func onScreenFullscreenWindow() -> String? {
+        guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+                as? [[String: Any]] else { return nil }
+        for info in list {
+            guard (info[kCGWindowLayer as String] as? Int) == 0,
+                  let b = info[kCGWindowBounds as String] as? [String: CGFloat],
+                  let w = b["Width"], let h = b["Height"], let x = b["X"], let y = b["Y"] else { continue }
+            if coversDisplay(CGRect(x: x, y: y, width: w, height: h)) {
+                return info[kCGWindowOwnerName as String] as? String ?? "an app"
+            }
+        }
+        return nil
+    }
+
     private func isStandard(_ el: AXUIElement) -> Bool {
         AX.role(el) == kAXWindowRole && AX.subrole(el) == kAXStandardWindowSubrole
     }
@@ -751,7 +779,7 @@ final class WindowManager {
     private func track(_ el: AXUIElement, app: AppEntry, onScreen: Set<CGWindowID>) -> Bool {
         guard let id = AX.windowID(el), windows[id] == nil else { return false }
         guard isStandard(el), onScreen.contains(id), !AX.isMinimized(el), !AX.isNativeFullscreen(el),
-              let frame = AX.frame(el), frame.width > 50, frame.height > 50 else { return false }
+              let frame = AX.frame(el), frame.width > 50, frame.height > 50, !coversDisplay(frame) else { return false }
 
         let w = Window(id: id, ax: el, pid: app.pid)
         w.naturalSize = frame.size
@@ -781,6 +809,14 @@ final class WindowManager {
             w.priority = p.priority
             w.ruleFloat = p.ruleFloat
             if p.tiled {
+                w.workspace = ws.number
+                pendingRestores.append((w, ws, p))
+                scheduleRelayout()
+            } else if p.ruleFloat, shouldFloat(w, app: app) == nil {
+                // It floated because of a rule that no longer holds (a fullscreen stint looked like a
+                // fixed size, say). Treat it as an ordinary tiled window again.
+                w.ruleFloat = false
+                w.minSize = .zero
                 w.workspace = ws.number
                 pendingRestores.append((w, ws, p))
                 scheduleRelayout()
@@ -947,6 +983,13 @@ final class WindowManager {
             log("skip   reconcile: window server lists none of \(windows.count) known windows")
             return
         }
+        // A native-fullscreen app in front is its own Space: everything else reads as off screen.
+        // Leave the layout alone until the user comes back.
+        if let full = onScreenFullscreenWindow() {
+            if !fullscreenSkipLogged { log("skip   reconcile: \(full) is fullscreen in front; keeping the layout"); fullscreenSkipLogged = true }
+            return
+        }
+        fullscreenSkipLogged = false
         for w in Array(windows.values) {
             if !onScreen.contains(w.id) { untrack(w, reason: "off screen"); continue }
             if AX.role(w.ax) == nil { untrack(w, reason: "gone"); continue }
@@ -1166,7 +1209,7 @@ final class WindowManager {
     private func verify() {
         var learned = false
         for w in windows.values where w.tiled && !w.fullscreen && !w.hidden {
-            guard let target = w.assigned, let actual = w.frame else { continue }
+            guard let target = w.assigned, let actual = w.frame, !coversDisplay(actual) else { continue }
             // A window that stays *bigger* than asked has a minimum size. Smaller is just grid snapping.
             var min = w.minSize
             if actual.width > target.width + settleTolerance { min.width = max(min.width, actual.width) }
