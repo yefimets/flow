@@ -87,6 +87,15 @@ final class Grid {
         guard let p = position(of: w) else { return }
         columns[p.column].windows.remove(at: p.row)
         if columns[p.column].windows.isEmpty { columns.remove(at: p.column) }
+        spreadPair()
+    }
+
+    /// Two windows left stacked in the only column spread into two columns: the upper one goes left.
+    private func spreadPair() {
+        guard columns.count == 1, columns[0].windows.count == 2 else { return }
+        let lower = columns[0].windows.removeLast()
+        columns.append(Column(lower, origin: 1))
+        columns[0].origin = 0
     }
 
     /// Makes each column's origin its current index. Called after deliberate rearrangements.
