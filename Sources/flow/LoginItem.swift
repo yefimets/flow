@@ -11,16 +11,16 @@ enum LoginItem {
     static var isBundle: Bool { Bundle.main.bundleURL.pathExtension == "app" }
 
     static var isEnabled: Bool {
-        if isBundle { return SMAppService.mainApp.status == .enabled }
-        return FileManager.default.fileExists(atPath: plistURL.path)
+        if FileManager.default.fileExists(atPath: plistURL.path) { return true }
+        return isBundle && SMAppService.mainApp.status == .enabled
     }
 
     /// Whether launchd started this process (so restarts should go through launchd, not pkill).
     static var runningUnderAgent: Bool { ProcessInfo.processInfo.environment["FLOW_LAUNCH_AGENT"] == "1" }
 
     @discardableResult
-    static func set(_ on: Bool) -> String {
-        if isBundle {
+    static func set(_ on: Bool, forceAgent: Bool = false) -> String {
+        if isBundle, !forceAgent {
             do {
                 if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
                 return on ? "Flow will launch at login" : "Flow removed from login items"

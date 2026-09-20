@@ -64,7 +64,7 @@ if arguments.contains("--help") || arguments.contains("-h") {
 if arguments.first == "cmd" { sendCommand(Array(arguments.dropFirst())) }
 if arguments.first == "login" {
     switch arguments.dropFirst().first {
-    case "on": print(LoginItem.set(true))
+    case "on": print(LoginItem.set(true, forceAgent: arguments.contains("--agent")))
     case "off": print(LoginItem.set(false))
     default: print("launch at login: \(LoginItem.isEnabled ? "on" : "off")\nusage: flow login on|off")
     }

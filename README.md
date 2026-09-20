@@ -131,8 +131,12 @@ unsaved changes moves to the nearest other flow instead, so nothing is stranded.
 
 The menu bar item has a **Launch at Login** toggle. As an app it registers with macOS and appears under
 System Settings › General › Login Items. As a terminal build it installs a LaunchAgent that starts it at
-login and restarts it if it ever crashes; `flow login on|off` does the same from a shell. When it runs under
-the agent, restart it with `launchctl kickstart -k gui/$(id -u)/dev.flow.agent` rather than killing it.
+login and restarts it if it ever crashes; `flow login on|off` does the same from a shell.
+
+For day-to-day development use `scripts/dev-build.sh`: it builds, drops the binary into `build/Flow.app`,
+re-signs the bundle and restarts the agent. Running the dev build inside the signed bundle is what keeps
+the Accessibility grant across rebuilds; a bare binary gets a new signature every build and loses it.
+Install the agent once with `build/Flow.app/Contents/MacOS/flow login on --agent`.
 
 ## Configuration
 
