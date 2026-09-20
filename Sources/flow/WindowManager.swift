@@ -191,6 +191,7 @@ final class WindowManager {
     private var paused = false
     /// No state file at launch: a fresh install. Existing windows are split into flows and the sheet is shown.
     private var firstRun = false
+    private let startedAt = Date()
     /// An app we just asked for a window (alt+return, alt+b): its next window is tiled, not floated.
     private var expectTiled: (bundleID: String, until: Date)?
 
@@ -426,6 +427,7 @@ final class WindowManager {
             var d: [String: Any] = [
                 "workspace": p.workspace, "tiled": p.tiled, "ruleFloat": p.ruleFloat,
                 "minWidth": p.minSize.width, "minHeight": p.minSize.height, "priority": p.priority,
+                "bundleID": p.bundleID, "title": p.title,
             ]
             if let c = p.column { d["column"] = c }
             if let r = p.row { d["row"] = r }
@@ -436,6 +438,7 @@ final class WindowManager {
             var d: [String: Any] = [
                 "workspace": w.workspace, "tiled": w.tiled || w.overflow, "ruleFloat": w.ruleFloat,
                 "minWidth": w.minSize.width, "minHeight": w.minSize.height, "priority": w.priority,
+                "bundleID": apps[w.pid]?.bundleID ?? "", "title": w.title,
             ]
             if let pos = grid(of: w)?.position(of: w) { d["column"] = pos.column; d["row"] = pos.row }
             if w.floating, !w.overflow, let f = w.hidden ? w.savedFrame : w.frame {
@@ -491,11 +494,14 @@ final class WindowManager {
                 if let display = Display.all().first, minSize.width >= display.area.width * 0.9 || minSize.height >= display.area.height * 0.9 {
                     minSize = .zero  // learned while the window was fullscreen; meaningless
                 }
-                remembered[id] = Placement(
+                var placement = Placement(
                     workspace: d["workspace"] as? Int ?? 1, tiled: d["tiled"] as? Bool ?? true,
                     column: d["column"] as? Int, row: d["row"] as? Int, frame: frame,
                     minSize: minSize,
                     priority: d["priority"] as? Double ?? 0, ruleFloat: d["ruleFloat"] as? Bool ?? false)
+                placement.bundleID = d["bundleID"] as? String ?? ""
+                placement.title = d["title"] as? String ?? ""
+                remembered[id] = placement
             }
         }
         if let byApp = s["byApp"] as? [String: [[String: Any]]] {
@@ -516,6 +522,19 @@ final class WindowManager {
             }
         }
         savedGrids = s["grids"] as? [String: [String: Any]] ?? [:]
+        // After a logout every app relaunched with new window ids. Saved windows that exist nowhere
+        // any more hand their slots to the relaunched app's windows, matched by title.
+        if let list = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] {
+            let alive = Set(list.compactMap { ($0[kCGWindowNumber as String] as? NSNumber)?.uint32Value })
+            var moved = 0
+            for (id, p) in remembered where !alive.contains(id) {
+                remembered.removeValue(forKey: id)   // gone for good, or about to be adopted below
+                guard !p.bundleID.isEmpty else { continue }
+                rememberedByApp[p.bundleID, default: []].append(p)
+                moved += 1
+            }
+            if moved > 0 { log("state: \(moved) saved windows no longer exist; their slots go to relaunched apps by title") }
+        }
         log("state: restoring \(count) flow\(count == 1 ? "" : "s"), active \(activeWorkspace), \(remembered.count) remembered windows")
     }
 
@@ -817,10 +836,12 @@ final class WindowManager {
         // after that the memory is stale and dropped. A window you asked for (alt+b, alt+return) never adopts.
         let requested = expectTiled.map { $0.bundleID == app.bundleID && Date() < $0.until } ?? false
         let sinceLaunch = app.app.launchDate.map { Date().timeIntervalSince($0) } ?? .infinity
-        if sinceLaunch > 120, rememberedByApp[app.bundleID] != nil {
+        let sinceStart = Date().timeIntervalSince(startedAt)
+        if sinceLaunch > 120, sinceStart > 180, rememberedByApp[app.bundleID] != nil {
             rememberedByApp[app.bundleID] = nil
         }
-        let adopted = (!requested && sinceLaunch <= 120) ? adoptPlacement(bundleID: app.bundleID, title: w.title, pid: app.pid) : nil
+        let adopted = (!requested && (sinceLaunch <= 120 || sinceStart <= 180))
+            ? adoptPlacement(bundleID: app.bundleID, title: w.title, pid: app.pid) : nil
         if let p = remembered[id] ?? adopted {
             // Back from a lock, a Space switch, a minimise, or an app relaunch: same workspace, same slot.
             let ws = workspace(min(max(p.workspace, 1), Self.maxWorkspaces))

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.4 — 2026-09-20
+
+### Added
+- Launch at Login, from the menu or `flow login on|off`. The app registers as a macOS login item; a terminal
+  build installs a LaunchAgent that also restarts it after a crash. `scripts/dev-build.sh` runs the dev build
+  inside the signed bundle so the Accessibility grant survives rebuilds.
+
+### Fixed
+- Flows survive a logout. Apps relaunch at login with new window ids; saved windows that no longer exist
+  now hand their flow and slot to the relaunched app's windows, matched by title.
+- Stale entries no longer accumulate in the state file.
+- No duplicated log lines when running under the LaunchAgent.
+
 ## 0.1.3 — 2026-09-20
 
 ### Fixed
