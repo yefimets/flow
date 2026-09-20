@@ -5,17 +5,34 @@ let commandNotification = Notification.Name("dev.flow.command")
 /// `flow cmd <name> [n]` posts a command to the running instance and exits.
 func sendCommand(_ args: [String]) -> Never {
     guard let name = args.first else {
+        print("  attention --tag TAG [--priority 1|2|3] MESSAGE   ask for the user; alt+tab jumps to the window whose title contains TAG")
+        print("  attention --clear --tag TAG                     withdraw the request")
+        print("  open URL [--tag TAG]                            open URL in a browser column next to the tagged window")
         print("usage: flow cmd <flow N | move N | new | remove | screenshot [N] | focus DIR | swap DIR | float | fullscreen | columns | terminal | close | reload | quit>")
         exit(2)
     }
     var info: [String: String] = ["name": name]
     if args.count > 1 { info["arg"] = args[1] }
+    info["args"] = args.dropFirst().joined(separator: "\u{1F}")
     DistributedNotificationCenter.default().postNotificationName(
         commandNotification, object: nil, userInfo: info, deliverImmediately: true)
     exit(0)
 }
 
-func action(fromCommand name: String, arg: String?) -> Action? {
+/// `--tag X --priority N words…` style flags for the attention commands.
+func parseFlags(_ words: [String]) -> (flags: [String: String], rest: [String]) {
+    var flags: [String: String] = [:], rest: [String] = [], i = 0
+    while i < words.count {
+        let w = words[i]
+        if w.hasPrefix("--") {
+            let key = String(w.dropFirst(2))
+            if i + 1 < words.count, !words[i + 1].hasPrefix("--") { flags[key] = words[i + 1]; i += 2 } else { flags[key] = "true"; i += 1 }
+        } else { rest.append(w); i += 1 }
+    }
+    return (flags, rest)
+}
+
+func action(fromCommand name: String, arg: String?, words: [String] = []) -> Action? {
     func dir() -> Direction? {
         switch arg { case "left", "h": return .left; case "right", "l": return .right
         case "up", "k": return .up; case "down", "j": return .down; default: return nil }
@@ -35,6 +52,16 @@ func action(fromCommand name: String, arg: String?) -> Action? {
     case "columns": return .swapColumns
     case "terminal": return .terminal
     case "browser": return .browser
+    case "attention":
+        let (flags, rest) = parseFlags(words)
+        let tag = flags["tag"] ?? ""
+        if flags["clear"] != nil { return .attentionClear(tag: tag) }
+        return .attention(tag: tag, priority: Int(flags["priority"] ?? "2") ?? 2, message: rest.joined(separator: " "))
+    case "attend": return .attend
+    case "open":
+        let (flags, rest) = parseFlags(words)
+        guard let url = rest.first else { return nil }
+        return .openURL(url: url, tag: flags["tag"])
     case "close": return .close
     case "reload": return .reload
     case "quit": return .quit
@@ -106,7 +133,8 @@ DistributedNotificationCenter.default().addObserver(
 ) { n in
     guard let name = n.userInfo?["name"] as? String else { return }
     let arg = n.userInfo?["arg"] as? String
-    if let a = action(fromCommand: name, arg: arg) {
+    let words = (n.userInfo?["args"] as? String)?.split(separator: "\u{1F}").map(String.init) ?? []
+    if let a = action(fromCommand: name, arg: arg, words: words) {
         log("cmd    \(name) \(arg ?? "")")
         manager.perform(a)
     } else {

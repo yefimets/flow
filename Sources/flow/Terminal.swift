@@ -44,7 +44,7 @@ enum Launcher {
 
     /// New window in the default browser. Safari needs AppleScript; Chromium and Firefox take a flag.
     @discardableResult
-    static func openBrowser() -> String? {
+    static func openBrowser(url page: String? = nil) -> String? {
         guard let url = NSWorkspace.shared.urlForApplication(toOpen: URL(string: "https://example.com")!) else {
             log("browser: no default browser found")
             return nil
@@ -52,9 +52,10 @@ enum Launcher {
         let name = url.deletingPathExtension().lastPathComponent
         let id = Bundle(url: url)?.bundleIdentifier
         if id == "com.apple.Safari" {
-            osascript("tell application \"Safari\"\n make new document\n activate\nend tell")
+            let target = page ?? "about:blank"
+            osascript("tell application \"Safari\"\n make new document with properties {URL:\"\(target)\"}\n activate\nend tell")
         } else {
-            run("/usr/bin/open", ["-na", name, "--args", "--new-window"])
+            run("/usr/bin/open", ["-na", name, "--args", "--new-window"] + (page.map { [$0] } ?? []))
         }
         return id
     }

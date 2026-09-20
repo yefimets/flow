@@ -181,6 +181,22 @@ Flow's own state, which window sits in which flow and slot, lives in `~/.config/
 restored on every launch. Delete it to get the first-run split again. Logs go to `~/Library/Logs/Flow.log`
 when running as an app, or to the terminal.
 
+## For agents: attention and pages
+
+Any agent with a shell can ask for you and show you things. The `skills/flow/SKILL.md` file teaches
+Claude Code agents when and how; copy it to `~/.claude/skills/flow/` and every session has it.
+
+```bash
+printf '\033]0;flow:my-task\007'                                        # tag the terminal window title once
+flow cmd attention --tag flow:my-task --priority 2 "Need your OK to push"  # buzz card in the corner + sound
+flow cmd attention --clear --tag flow:my-task                             # withdraw it
+flow cmd open https://github.com/org/repo/pull/42 --tag flow:my-task      # page in a column next to that window
+```
+
+**⌥⇥** jumps to the window behind the most pressing request, switching flows if needed, and drops it
+from the queue. The menu bar shows how many requests are waiting. Priority 3 is urgent (red, louder,
+stays longer), 2 a decision, 1 "done, look when you like".
+
 ## Scripting
 
 All commands: `flow N`, `move N`, `new`, `remove`, `screenshot [N]`, `browser`, `terminal`,

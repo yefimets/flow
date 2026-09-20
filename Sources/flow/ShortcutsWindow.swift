@@ -108,6 +108,7 @@ private let sections: [Section] = [
     Section(title: "Windows", items: [
         Shortcut(keys: [["⌥", "↩"]], text: "New terminal window, tiled"),
         Shortcut(keys: [["⌥", "B"]], text: "New browser window, tiled"),
+        Shortcut(keys: [["⌥", "⇥"]], text: "Jump to the window that asked for you (agents: flow cmd attention)"),
         Shortcut(keys: [["⌥", "W"]], text: "Close the window"),
         Shortcut(keys: [["⌥", "F"]], text: "Toggle fullscreen"),
         Shortcut(keys: [["⌥", "V"]], text: "Toggle floating. New windows float; this tiles them"),

@@ -20,6 +20,10 @@ enum Action {
     case screenshot(Int?)
     case shortcuts
     case holdBegan
+    case attention(tag: String, priority: Int, message: String)
+    case attentionClear(tag: String)
+    case attend
+    case openURL(url: String, tag: String?)
     case holdEnded
     case reload
     case quit
@@ -66,6 +70,7 @@ final class HotkeyTap {
         ("alt + shift + arrows", "swap with neighbour"),
         ("alt + return", "open a terminal window in the grid"),
         ("alt + b", "open a browser window in the grid"),
+        ("alt + tab", "jump to the window that asked for you (agents: flow cmd attention)"),
         ("alt + w", "close window"),
         ("alt + f", "toggle fullscreen"),
         ("alt + v", "toggle floating"),
@@ -203,6 +208,7 @@ final class HotkeyTap {
         case (36, false, false): return .terminal      // return
         case (13, false, false): return .close         // w
         case (11, false, false): return .browser       // b
+        case (48, false, false): return .attend        // tab
         case (3, false, false): return .fullscreen     // f
         case (9, false, false): return .toggleFloat    // v
         case (17, false, false): return .toggleSplit   // t

@@ -192,8 +192,11 @@ final class WindowManager {
     /// No state file at launch: a fresh install. Existing windows are split into flows and the sheet is shown.
     private var firstRun = false
     private let startedAt = Date()
-    /// An app we just asked for a window (alt+return, alt+b): its next window is tiled, not floated.
-    private var expectTiled: (bundleID: String, until: Date)?
+    /// An app we just asked for a window (alt+return, alt+b, flow cmd open): its next window is tiled,
+    /// not floated, into `workspace` (the active one when nil), and announced when `announce` is set.
+    private var expectTiled: (bundleID: String, until: Date, workspace: Int?, announce: String?)?
+    /// Requests for the user's attention, most pressing first. ⌥⇥ takes the top one.
+    private(set) var attention: [AttentionRequest] = []
 
     init(config: Config, dryRun: Bool) {
         self.config = config
@@ -280,6 +283,10 @@ final class WindowManager {
         case .resize(let horizontal, let grow): resizeFocused(horizontal: horizontal, grow: grow)
         case .terminal: expectWindow(from: Launcher.openTerminal(config: config))
         case .browser: expectWindow(from: Launcher.openBrowser())
+        case .attention(let tag, let priority, let message): requestAttention(tag: tag, priority: priority, message: message)
+        case .attentionClear(let tag): clearAttention(tag: tag)
+        case .attend: attend()
+        case .openURL(let url, let tag): openURL(url, tag: tag)
         case .close: closeFocused()
         case .fullscreen: toggleFullscreen()
         case .toggleFloat: toggleFloat()
@@ -366,9 +373,76 @@ final class WindowManager {
         log("border colour \(hex)")
     }
 
-    private func expectWindow(from bundleID: String?) {
+    private func expectWindow(from bundleID: String?, workspace: Int? = nil, announce: String? = nil) {
         guard let bundleID else { return }
-        expectTiled = (bundleID, Date().addingTimeInterval(8))
+        expectTiled = (bundleID, Date().addingTimeInterval(8), workspace, announce)
+    }
+
+    // MARK: Attention
+
+    /// The tracked window whose title or app name contains the tag, preferring an exact title match.
+    private func window(taggedWith tag: String) -> Window? {
+        guard !tag.isEmpty else { return nil }
+        let t = tag.lowercased()
+        let candidates = windows.values.filter {
+            $0.title.lowercased().contains(t) || (apps[$0.pid]?.name.lowercased() ?? "").contains(t)
+        }
+        return candidates.first { $0.title.lowercased() == t } ?? candidates.max { $0.priority < $1.priority }
+    }
+
+    private func requestAttention(tag: String, priority: Int, message: String) {
+        let w = window(taggedWith: tag)
+        attention.removeAll { $0.tag == tag }
+        attention.append(AttentionRequest(windowID: w?.id, tag: tag, message: message, priority: min(max(priority, 1), 3)))
+        attention.sort { ($0.priority, $1.created) > ($1.priority, $0.created) }
+        log("buzz   \(tag)\(w.map { " -> \(describe($0))" } ?? " (no window matches; ⌥⇥ will just show it)"): \(message)")
+        showBuzz()
+        status?.update()
+    }
+
+    private func clearAttention(tag: String) {
+        let before = attention.count
+        attention.removeAll { tag.isEmpty || $0.tag == tag }
+        if attention.count != before { log("buzz   cleared \(tag.isEmpty ? "all" : tag)") }
+        if attention.isEmpty { BuzzWindow.shared.hide() } else { showBuzz() }
+        status?.update()
+    }
+
+    private func showBuzz() {
+        guard let top = attention.first else { return }
+        let title = top.windowID.flatMap { windows[$0] }.map { apps[$0.pid]?.name ?? top.tag } ?? top.tag
+        BuzzWindow.shared.show(title: "\(title) needs you", message: top.message, waiting: attention.count - 1, priority: top.priority)
+    }
+
+    /// ⌥⇥: go to the window behind the most pressing request and drop that request.
+    private func attend() {
+        guard let top = attention.first else {
+            log("buzz   nothing waiting")
+            return
+        }
+        attention.removeFirst()
+        BuzzWindow.shared.hide()
+        status?.update()
+        guard let id = top.windowID, let w = windows[id] else {
+            log("buzz   \(top.tag): no window to go to")
+            if !attention.isEmpty { showBuzz() }
+            return
+        }
+        if w.workspace != activeWorkspace { switchWorkspace(to: w.workspace) }
+        focus(w)
+        log("attend \(describe(w)) (\(top.tag))")
+        if !attention.isEmpty { showBuzz() }
+    }
+
+    /// Opens a URL in a browser window tiled into the tagged window's flow, next to it, and buzzes when
+    /// that flow is not the one in front.
+    private func openURL(_ url: String, tag: String?) {
+        let target = tag.flatMap { window(taggedWith: $0) }
+        let ws = target?.workspace ?? activeWorkspace
+        if let target { workspace(ws).lastFocused = target.id }   // the new window splits next to it
+        let announce = ws == activeWorkspace ? nil : "Page ready: \(url)"
+        expectWindow(from: Launcher.openBrowser(url: url), workspace: ws, announce: announce)
+        log("open   \(url) in flow \(ws)\(target.map { " next to \(describe($0))" } ?? "")")
     }
 
     // MARK: First run
@@ -874,8 +948,19 @@ final class WindowManager {
         } else if let expect = expectTiled, expect.bundleID == app.bundleID, Date() < expect.until {
             expectTiled = nil
             w.priority = Date().timeIntervalSince1970
-            tile(w, at: frame.center, in: active, explicit: true)
-            focus(w)
+            let ws = expect.workspace.map { workspace(min(max($0, 1), workspaces.count)) } ?? active
+            tile(w, at: frame.center, in: ws, explicit: true)
+            if ws.number == activeWorkspace {
+                focus(w)
+            } else {
+                hide(w)
+                if let announce = expect.announce {
+                    attention.append(AttentionRequest(windowID: w.id, tag: "page", message: announce, priority: 1))
+                    attention.sort { ($0.priority, $1.created) > ($1.priority, $0.created) }
+                    showBuzz()
+                    status?.update()
+                }
+            }
         } else if startupDone, config.newWindowsFloat {
             w.floating = true
             // Apps cascade new windows from their previous one. If that one is parked in the corner,
@@ -925,6 +1010,11 @@ final class WindowManager {
         ws.overflow.removeAll { $0 === w }
         if ws.lastFocused == w.id { ws.lastFocused = nil }
         windows.removeValue(forKey: w.id)
+        if attention.contains(where: { $0.windowID == w.id }) {
+            attention.removeAll { $0.windowID == w.id }
+            if attention.isEmpty { BuzzWindow.shared.hide() }
+            status?.update()
+        }
         if focusedID == w.id {
             focusedID = nil
             border.hide()

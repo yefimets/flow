@@ -25,7 +25,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             return
         }
         item.button?.toolTip = nil
-        item.button?.title = " \(manager?.activeWorkspace ?? 1)"
+        let waiting = manager?.attention.count ?? 0
+        item.button?.title = " \(manager?.activeWorkspace ?? 1)" + (waiting > 0 ? " · \(waiting) ⇥" : "")
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
