@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3 — 2026-09-20
+
+### Fixed
+- Hotkeys kept working after a lock or sleep. macOS silently drops the keyboard tap on unlock and the
+  notice that would re-enable it does not always arrive; Flow now checks the tap on unlock, wake and every
+  few seconds, re-enables it, and recreates it when its port has died.
+
 ## 0.1.2 — 2026-09-19
 
 ### Fixed

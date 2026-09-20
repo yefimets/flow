@@ -27,6 +27,8 @@ enum Action {
 final class HotkeyTap {
     private let handler: (Action) -> Void
     private var tap: CFMachPort?
+    private var source: CFRunLoopSource?
+    private var watchdog: Timer?
     private var holding = false
     private var holdTimer: Timer?
 
@@ -80,14 +82,47 @@ final class HotkeyTap {
         else { return false }
         self.tap = tap
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        self.source = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
+        watch()
         return true
+    }
+
+    /// macOS drops the tap after a lock, sleep or a callback that took too long, and the "disabled"
+    /// notice that lets the callback re-enable it does not always arrive. So the tap is checked on
+    /// unlock and wake and every few seconds, re-enabled, or recreated when its port has died.
+    private func watch() {
+        guard watchdog == nil else { return }
+        watchdog = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in self?.ensureEnabled() }
+        let dnc = DistributedNotificationCenter.default()
+        dnc.addObserver(forName: Notification.Name("com.apple.screenIsUnlocked"), object: nil, queue: .main) { [weak self] _ in self?.ensureEnabled() }
+        let nc = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification, NSWorkspace.sessionDidBecomeActiveNotification] {
+            nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in self?.ensureEnabled() }
+        }
+    }
+
+    func ensureEnabled() {
+        if let tap, CFMachPortIsValid(tap) {
+            if CGEvent.tapIsEnabled(tap: tap) { return }
+            CGEvent.tapEnable(tap: tap, enable: true)
+            if CGEvent.tapIsEnabled(tap: tap) { log("keys: tap was off, re-enabled"); return }
+            log("keys: tap could not be re-enabled, recreating it")
+        } else {
+            log("keys: tap port is dead, recreating it")
+        }
+        if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
+        if let tap { CFMachPortInvalidate(tap) }
+        source = nil
+        tap = nil
+        log(start() ? "keys: tap recreated" : "keys: could not recreate the tap; hotkeys are off")
     }
 
     private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
+            log("keys: tap disabled by \(type == .tapDisabledByTimeout ? "timeout" : "user input"), re-enabled")
             return Unmanaged.passUnretained(event)
         }
         let flags = event.flags
