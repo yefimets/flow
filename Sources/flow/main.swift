@@ -86,6 +86,7 @@ manager.status = statusMenu
 statusMenu.update()
 manager.start()
 
+NotificationCenter.default.addObserver(forName: HotkeyTap.secureInputChanged, object: nil, queue: .main) { _ in statusMenu.update() }
 let hotkeys = HotkeyTap { manager.perform($0) }
 if !hotkeys.start() {
     log("could not install the keyboard tap. Hotkeys are off; tiling still runs.")

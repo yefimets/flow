@@ -19,12 +19,27 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     func update() {
+        if let holder = HotkeyTap.secureInputHolder {
+            item.button?.title = " \(manager?.activeWorkspace ?? 1) ⚠︎"
+            item.button?.toolTip = "Shortcuts are blocked: Secure Keyboard Entry is on in \(holder)"
+            return
+        }
+        item.button?.toolTip = nil
         item.button?.title = " \(manager?.activeWorkspace ?? 1)"
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         guard let manager else { return }
+        if let holder = HotkeyTap.secureInputHolder {
+            let warn = NSMenuItem(title: "⚠︎ Shortcuts blocked: Secure Keyboard Entry is on in \(holder)", action: nil, keyEquivalent: "")
+            warn.isEnabled = false
+            menu.addItem(warn)
+            let how = NSMenuItem(title: "Finish the password prompt there, or toggle Secure Keyboard Entry in its menu", action: nil, keyEquivalent: "")
+            how.isEnabled = false
+            menu.addItem(how)
+            menu.addItem(.separator())
+        }
         let count = manager.workspaceCount
         let active = manager.activeWorkspace
 

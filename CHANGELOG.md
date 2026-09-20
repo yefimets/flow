@@ -3,9 +3,11 @@
 ## 0.1.3 — 2026-09-20
 
 ### Fixed
-- Hotkeys kept working after a lock or sleep. macOS silently drops the keyboard tap on unlock and the
-  notice that would re-enable it does not always arrive; Flow now checks the tap on unlock, wake and every
-  few seconds, re-enables it, and recreates it when its port has died.
+- Shortcuts dead with no explanation while an app holds Secure Keyboard Entry (a terminal at a password
+  prompt, a password manager): macOS then delivers keys to no hotkey app at all. Flow now says so, with the
+  app's name, in the menu bar (⚠︎) and the log, and clears it the moment the app lets go.
+- The keyboard tap is watched: re-enabled when macOS drops it after a lock, sleep or a slow callback (the
+  notice that would re-enable it does not always arrive), recreated when its port has died.
 
 ## 0.1.2 — 2026-09-19
 

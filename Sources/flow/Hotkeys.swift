@@ -1,4 +1,6 @@
+import Carbon
 import Cocoa
+import IOKit
 
 enum Action {
     case focus(Direction)
@@ -29,6 +31,21 @@ final class HotkeyTap {
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
     private var watchdog: Timer?
+
+    static let secureInputChanged = Notification.Name("dev.flow.secureInput")
+    /// The app holding Secure Keyboard Entry, while one does. macOS then delivers keyboard events to no
+    /// event tap on the system, so every shortcut is dead until that app lets go (a terminal at a password
+    /// prompt, a password manager, or the option in the app's menu).
+    private(set) static var secureInputHolder: String?
+
+    static func secureInputHolderName() -> String? {
+        guard IsSecureEventInputEnabled() else { return nil }
+        let root = IORegistryGetRootEntry(kIOMainPortDefault)
+        let users = IORegistryEntryCreateCFProperty(root, "IOConsoleUsers" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? [[String: Any]]
+        guard let pid = users?.compactMap({ $0["kCGSSessionSecureInputPID"] as? Int }).first else { return "another app" }
+        let name = NSRunningApplication(processIdentifier: pid_t(pid))?.localizedName ?? "pid \(pid)"
+        return name
+    }
     private var holding = false
     private var holdTimer: Timer?
 
@@ -104,6 +121,16 @@ final class HotkeyTap {
     }
 
     func ensureEnabled() {
+        let holder = Self.secureInputHolderName()
+        if holder != Self.secureInputHolder {
+            Self.secureInputHolder = holder
+            if let holder {
+                log("keys: Secure Keyboard Entry is on in \(holder); no app can see keyboard shortcuts until it is off. Finish the password prompt there, or toggle Secure Keyboard Entry in its menu.")
+            } else {
+                log("keys: Secure Keyboard Entry is off, shortcuts work again")
+            }
+            NotificationCenter.default.post(name: Self.secureInputChanged, object: nil)
+        }
         if let tap, CFMachPortIsValid(tap) {
             if CGEvent.tapIsEnabled(tap: tap) { return }
             CGEvent.tapEnable(tap: tap, enable: true)
