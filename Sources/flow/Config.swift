@@ -130,5 +130,7 @@ func log(_ message: @autoclosure () -> String) {
     let line = "[\(logFormatter.string(from: Date()))] \(message())"
     print(line)
     fflush(stdout)
-    if isatty(1) == 0, let data = (line + "\n").data(using: .utf8) { logFile?.write(data) }
+    // Under the LaunchAgent stdout is already the log file; appending again would double every line.
+    if isatty(1) == 0, ProcessInfo.processInfo.environment["FLOW_LAUNCH_AGENT"] != "1",
+       let data = (line + "\n").data(using: .utf8) { logFile?.write(data) }
 }
