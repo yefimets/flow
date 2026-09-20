@@ -134,6 +134,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         sheet.target = self
         menu.addItem(sheet)
 
+        let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
+        login.state = LoginItem.isEnabled ? .on : .off
+        login.target = self
+        menu.addItem(login)
+
         let hud = NSMenuItem(title: "Show Shortcuts While Holding ⌥", action: #selector(toggleHud), keyEquivalent: "")
         hud.state = manager.optionHudEnabled ? .on : .off
         hud.target = self
@@ -152,6 +157,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func showShortcuts() { manager?.perform(.shortcuts) }
     @objc private func toggleHud() { if let m = manager { m.setOptionHud(!m.optionHudEnabled) } }
+    @objc private func toggleLogin() { log(LoginItem.set(!LoginItem.isEnabled)) }
 
     static let presets: [(String, String)] = [
         ("Tokyo Blue", "#7AA2F7"), ("Mint", "#9ECE6A"), ("Teal", "#2AC3DE"), ("Lavender", "#BB9AF7"),

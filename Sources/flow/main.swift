@@ -50,6 +50,7 @@ if arguments.contains("--help") || arguments.contains("-h") {
 
     usage: flow [--dry-run]
            flow cmd <command> [arg]      send a command to the running instance
+           flow login on|off             launch Flow at login (and keep it running)
 
       --dry-run   observe and log the layout it would apply, but never move a window
 
@@ -61,6 +62,14 @@ if arguments.contains("--help") || arguments.contains("-h") {
     exit(0)
 }
 if arguments.first == "cmd" { sendCommand(Array(arguments.dropFirst())) }
+if arguments.first == "login" {
+    switch arguments.dropFirst().first {
+    case "on": print(LoginItem.set(true))
+    case "off": print(LoginItem.set(false))
+    default: print("launch at login: \(LoginItem.isEnabled ? "on" : "off")\nusage: flow login on|off")
+    }
+    exit(0)
+}
 let dryRun = arguments.contains("--dry-run")
 
 let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary

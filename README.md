@@ -127,6 +127,13 @@ Window menu or Mission Control always follows it.
 Removing a flow closes the windows in it. A window that stays open because its app asked about
 unsaved changes moves to the nearest other flow instead, so nothing is stranded. Other flows keep their numbers.
 
+## Launch at login
+
+The menu bar item has a **Launch at Login** toggle. As an app it registers with macOS and appears under
+System Settings › General › Login Items. As a terminal build it installs a LaunchAgent that starts it at
+login and restarts it if it ever crashes; `flow login on|off` does the same from a shell. When it runs under
+the agent, restart it with `launchctl kickstart -k gui/$(id -u)/dev.flow.agent` rather than killing it.
+
 ## Configuration
 
 `~/.config/flow/config.json`, every key optional:
