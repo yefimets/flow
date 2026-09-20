@@ -11,13 +11,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yefimets/flow/releases/latest"><img src="https://img.shields.io/github/v/release/yefimets/flow?label=download&color=7AA2F7&cacheSeconds=3600" alt="Latest release"></a>
+  <a href="https://github.com/yefimets/flow/releases/download/v0.1.4/Flow-0.1.4.zip"><img src="https://img.shields.io/badge/Download_Flow-0.1.4-7AA2F7?style=for-the-badge&logo=apple&logoColor=white" alt="Download Flow 0.1.4"></a>
   <img src="https://img.shields.io/badge/macOS-13%2B-black" alt="macOS 13+">
   <img src="https://img.shields.io/badge/Swift-5.9-orange" alt="Swift 5.9">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT"></a>
 </p>
 
 ---
+
+**Latest release: [0.1.4](https://github.com/yefimets/flow/releases/tag/v0.1.4)** · [changelog](CHANGELOG.md) · [download Flow.zip](https://github.com/yefimets/flow/releases/latest/download/Flow-0.1.4.zip)
 
 Flow treats your screen as a set of **flows**: a flow is one piece of work, with the two to four
 windows it needs, laid out in a grid. You jump between flows with a number key. An AI agent can do the
