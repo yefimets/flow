@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yefimets/flow/releases/download/v0.1.5/Flow-0.1.5.zip"><img src="https://img.shields.io/badge/Download_Flow-0.1.5-7AA2F7?style=for-the-badge&logo=apple&logoColor=white" alt="Download Flow 0.1.5"></a>
+  <a href="https://github.com/yefimets/flow/releases/download/v0.1.16/Flow-0.1.16.zip"><img src="https://img.shields.io/badge/Download_Flow-0.1.16-7AA2F7?style=for-the-badge&logo=apple&logoColor=white" alt="Download Flow 0.1.16"></a>
   <img src="https://img.shields.io/badge/macOS-13%2B-black" alt="macOS 13+">
   <img src="https://img.shields.io/badge/Swift-5.9-orange" alt="Swift 5.9">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT"></a>
@@ -19,7 +19,7 @@
 
 ---
 
-**Latest release: [0.1.5](https://github.com/yefimets/flow/releases/tag/v0.1.5)** · [changelog](CHANGELOG.md) · [download Flow.zip](https://github.com/yefimets/flow/releases/latest/download/Flow-0.1.5.zip)
+**Latest release: [0.1.16](https://github.com/yefimets/flow/releases/tag/v0.1.16)** · [changelog](CHANGELOG.md) · [download Flow.zip](https://github.com/yefimets/flow/releases/latest/download/Flow-0.1.16.zip)
 
 Your screen is a mirror of your mind.
 
