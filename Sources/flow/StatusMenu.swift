@@ -84,20 +84,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(remove)
         menu.addItem(.separator())
 
-        // What ⌥ opens, with the keys, so the menu teaches them.
-        func opener(_ title: String, _ app: String?, _ action: Selector, key: String) {
-            let mi = NSMenuItem(title: title + (app.map { "  ·  \($0)" } ?? ""), action: action, keyEquivalent: key)
-            mi.keyEquivalentModifierMask = [.option]
-            mi.target = self
-            mi.isEnabled = app != nil || key == "b" || key == "o"
-            menu.addItem(mi)
-        }
-        opener("New Terminal Window", manager.terminalInUse, #selector(openTerminal), key: "\r")
-        opener("New Browser Window", nil, #selector(openBrowser), key: "b")
-        opener("New Note", manager.notesInUse, #selector(openNote), key: "n")
-        opener("New Finder Window", nil, #selector(openFinder), key: "o")
-        menu.addItem(.separator())
-
         // Which app each key uses. "Automatic" is the first installed one Flow knows.
         func chooser(_ title: String, choice: String, inUse: String?, installed: [String], _ action: Selector) {
             let top = NSMenuItem(title: title, action: nil, keyEquivalent: "")
@@ -230,10 +216,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     @objc private func choosePasswordManager(_ sender: NSMenuItem) {
         if let name = sender.representedObject as? String { manager?.setPasswordManager(name) }
     }
-    @objc private func openTerminal() { manager?.perform(.terminal) }
-    @objc private func openBrowser() { manager?.perform(.browser) }
-    @objc private func openNote() { manager?.perform(.note) }
-    @objc private func openFinder() { manager?.perform(.finder) }
     @objc private func reload() { manager?.perform(.reload) }
     @objc private func quit() { manager?.perform(.quit) }
 }
