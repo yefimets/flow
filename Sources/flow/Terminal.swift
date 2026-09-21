@@ -60,12 +60,69 @@ enum Launcher {
         return id
     }
 
-    /// A new note in its own window. Notes creates notes by script but opens them only in its main window,
-    /// so the note is made and selected there, then "Open Note in New Window" is pressed through
+    // MARK: Notes and password managers
+
+    /// Notes apps Flow knows how to hand a new note. Any other name in the config is launched and its next window tiled.
+    private static let notesApps = ["Notes", "Bear", "Obsidian"]
+    private static let passwordManagers = [
+        "1Password", "Bitwarden", "KeePassXC", "Strongbox", "Enpass", "Dashlane", "NordPass",
+        "Keeper Password Manager", "Proton Pass", "LastPass",
+    ]
+
+    static func notesAppName(for config: Config) -> String? {
+        if config.notesApp != "auto" { return config.notesApp }
+        return notesApps.first { appPath($0) != nil }
+    }
+
+    static func installedNotesApps() -> [String] { notesApps.filter { appPath($0) != nil } }
+
+    static func notesBundleID(for config: Config) -> String? {
+        bundleID(atPath: notesAppName(for: config).flatMap(appPath))
+    }
+
+    static func passwordManagerName(for config: Config) -> String? {
+        if config.passwordManager != "auto" { return config.passwordManager }
+        return passwordManagers.first { appPath($0) != nil }
+    }
+
+    static func installedPasswordManagers() -> [String] { passwordManagers.filter { appPath($0) != nil } }
+
+    static func passwordManagerBundleID(for config: Config) -> String? {
+        bundleID(atPath: passwordManagerName(for: config).flatMap(appPath))
+    }
+
+    /// A new note in the configured notes app. Notes gets its own window; Bear and Obsidian take a URL
+    /// and show the note in their window; anything else is launched and its next window tiled.
+    static func openNote(config: Config, expect: @escaping (String?) -> Void) {
+        guard let name = notesAppName(for: config) else {
+            log("note: no notes app installed")
+            return
+        }
+        guard let path = appPath(name) else {
+            log("note: \(name) is not installed")
+            return
+        }
+        switch name {
+        case "Notes":
+            openAppleNote(expect: expect)
+        case "Bear":
+            expect(bundleID(atPath: path))
+            run("/usr/bin/open", ["bear://x-callback-url/create?new_window=yes"])
+        case "Obsidian":
+            expect(bundleID(atPath: path))
+            run("/usr/bin/open", ["obsidian://new"])
+        default:
+            expect(bundleID(atPath: path))
+            run("/usr/bin/open", ["-na", name])
+        }
+    }
+
+    /// A new note in its own Notes window. Notes creates notes by script but opens them only in its main
+    /// window, so the note is made and selected there, then "Open Note in New Window" is pressed through
     /// Accessibility once Notes enables it. `expect` runs just before that press, so the note window,
     /// not a main window Notes may open first, is the one Flow tiles. The menu item is matched by its
     /// English title.
-    static func openNote(expect: @escaping (String?) -> Void) {
+    private static func openAppleNote(expect: @escaping (String?) -> Void) {
         let bundleID = "com.apple.Notes"
         // No `activate`: raising Notes' main window would switch Flow to that window's flow first.
         // Without a body Notes types "New Note" into the note; a blank line leaves it empty.

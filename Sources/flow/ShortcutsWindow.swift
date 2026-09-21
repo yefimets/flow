@@ -107,9 +107,9 @@ private let sections: [Section] = [
     Section(title: "Windows", items: [
         Shortcut(keys: [["⌥", "↩"]], text: "New terminal window, tiled"),
         Shortcut(keys: [["⌥", "B"]], text: "New browser window, tiled"),
-        Shortcut(keys: [["⌥", "N"]], text: "New note in its own window, tiled"),
+        Shortcut(keys: [["⌥", "N"]], text: "New note, tiled (Notes, Bear, Obsidian: pick one in the menu)"),
         Shortcut(keys: [["⌥", "O"]], text: "New Finder window, tiled"),
-        Shortcut(keys: [["⌥", "P"]], text: "1Password, floating, brought to this flow"),
+        Shortcut(keys: [["⌥", "P"]], text: "Password manager, floating, brought to this flow"),
         Shortcut(keys: [["⌥", "⇥"]], text: "Jump to the window that asked for you (flow cmd attention)"),
         Shortcut(keys: [["⌥", "W"]], text: "Close the window"),
         Shortcut(keys: [["⌥", "F"]], text: "Toggle fullscreen"),

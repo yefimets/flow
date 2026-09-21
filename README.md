@@ -107,9 +107,9 @@ scripts/build.sh      # swift build + a stable code signature, so the Accessibil
 | ⌥ S | Swap the two columns |
 | ⌥ ↩ | New terminal window, straight into the grid |
 | ⌥ B | New default-browser window, straight into the grid |
-| ⌥ N | New note in its own Notes window, straight into the grid |
+| ⌥ N | New note, straight into the grid. Notes gets its own window; Bear and Obsidian show it in theirs. Pick the app in the menu |
 | ⌥ O | New Finder window, straight into the grid |
-| ⌥ P | 1Password, floating, brought to the current flow (launched if it is not running) |
+| ⌥ P | Password manager, floating, brought to the current flow (launched if it is not running). Pick it in the menu |
 | ⌥ W | Close the window |
 | ⌥ F | Toggle fullscreen |
 | ⌥ V | Toggle floating. New windows float; this tiles them |
@@ -163,6 +163,8 @@ Install the agent once with `build/Flow.app/Contents/MacOS/flow login on --agent
   "borderColor": "#7AA2F7",
   "borderRadii": { "com.google.Chrome": 18, "com.anthropic.claudefordesktop": 18 },
   "terminal": "auto",
+  "notesApp": "auto",
+  "passwordManager": "auto",
   "resizeStep": 0.05,
   "newWindowsFloat": true,
   "optionHud": true,
@@ -177,6 +179,8 @@ Install the agent once with `build/Flow.app/Contents/MacOS/flow login on --agent
 | `borderWidth`, `borderRadius`, `borderColor`, `borderInset` | The focus ring. `borderRadius` is for native windows; the ring is pulled in by `borderInset` to hug the visible edge |
 | `borderRadii` | Ring corner radius per app bundle identifier. Chrome and Electron apps draw smaller corners than native macOS 26 windows |
 | `terminal` | `"auto"` picks the first installed of Ghostty, Alacritty, kitty, WezTerm, iTerm, Terminal, or an app name |
+| `notesApp` | `"auto"` picks the first installed of Notes, Bear, Obsidian; any other app name is launched and its next window tiled |
+| `passwordManager` | `"auto"` picks the first installed of 1Password, Bitwarden, KeePassXC, Strongbox, Enpass, Dashlane, NordPass, Keeper, Proton Pass, LastPass, or an app name |
 | `resizeStep` | Fraction of the width or height moved per ⌥= / ⌥- press |
 | `newWindowsFloat` | `true` floats windows opened after Flow starts, centred horizontally; ⌥V tiles one. `false` tiles them at once |
 | `optionHud` | Holding ⌥ alone shows the shortcuts sheet |
@@ -184,7 +188,7 @@ Install the agent once with `build/Flow.app/Contents/MacOS/flow login on --agent
 | `floatTitles` | Title substrings that float, applied only to windows smaller than 60% of the display |
 
 Fixed-size windows, such as onboarding screens, are detected and float automatically. Edit the file and
-press ⌥⇧R, or use the menu: focus colour and the ⌥ hold toggle are saved there for you.
+press ⌥⇧R, or use the menu: terminal, notes app, password manager, focus colour and the ⌥ hold toggle are saved there for you.
 
 Flow's own state, which window sits in which flow and slot, lives in `~/.config/flow/state.json` and is
 restored on every launch. Delete it to get the first-run split again. Logs go to `~/Library/Logs/Flow.log`

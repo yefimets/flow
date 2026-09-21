@@ -5,7 +5,10 @@
 ### Added
 - ⌥N opens a new note in its own Notes window, tiled into the grid. ⌥O opens a Finder window, tiled,
   even though Finder windows float by rule otherwise. Also `flow cmd note` and `flow cmd finder`.
-- ⌥P brings 1Password to the current flow, floating, launching it if needed. Also `flow cmd password`.
+- ⌥P brings your password manager to the current flow, floating, launching it if needed. Also `flow cmd password`.
+- The notes app behind ⌥N and the password manager behind ⌥P are chosen in the menu or with `notesApp` and
+  `passwordManager` in the config; "auto" takes the first installed one Flow knows.
+- The menu lists what ⌥ opens (terminal, browser, note, Finder, password manager) with the keys.
 
 ### Changed
 - ⌥N no longer creates a flow. ⌥1–9 creates the flow it switches to; the menu and `flow cmd new` still add one.

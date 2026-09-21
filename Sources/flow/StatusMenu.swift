@@ -69,8 +69,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         move.isEnabled = count > 1
         menu.addItem(move)
 
-        let new = NSMenuItem(title: "New Flow", action: #selector(newWorkspace), keyEquivalent: "n")
-        new.keyEquivalentModifierMask = [.option]
+        let new = NSMenuItem(title: "New Flow", action: #selector(newWorkspace), keyEquivalent: "")
         new.target = self
         new.isEnabled = count < WindowManager.maxWorkspaces
         menu.addItem(new)
@@ -85,30 +84,52 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(remove)
         menu.addItem(.separator())
 
-        let terminal = NSMenuItem(title: "Terminal", action: nil, keyEquivalent: "")
-        let terminals = NSMenu()
-        let choice = manager.terminalChoice
-        let auto = NSMenuItem(title: "Automatic" + (manager.terminalInUse.map { "  ·  \($0)" } ?? ""),
-                              action: #selector(chooseTerminal(_:)), keyEquivalent: "")
-        auto.representedObject = "auto"
-        auto.state = choice == "auto" ? .on : .off
-        auto.target = self
-        terminals.addItem(auto)
-        terminals.addItem(.separator())
-        for name in Launcher.installedTerminals() {
-            let mi = NSMenuItem(title: name, action: #selector(chooseTerminal(_:)), keyEquivalent: "")
-            mi.representedObject = name
-            mi.state = choice == name ? .on : .off
+        // What ⌥ opens, with the keys, so the menu teaches them.
+        func opener(_ title: String, _ app: String?, _ action: Selector, key: String) {
+            let mi = NSMenuItem(title: title + (app.map { "  ·  \($0)" } ?? ""), action: action, keyEquivalent: key)
+            mi.keyEquivalentModifierMask = [.option]
             mi.target = self
-            terminals.addItem(mi)
+            mi.isEnabled = app != nil || key == "b" || key == "o"
+            menu.addItem(mi)
         }
-        if choice != "auto", !Launcher.installedTerminals().contains(choice) {
-            let mi = NSMenuItem(title: "\(choice)  (not installed)", action: nil, keyEquivalent: "")
-            mi.state = .on
-            terminals.addItem(mi)
+        opener("New Terminal Window", manager.terminalInUse, #selector(openTerminal), key: "\r")
+        opener("New Browser Window", nil, #selector(openBrowser), key: "b")
+        opener("New Note", manager.notesInUse, #selector(openNote), key: "n")
+        opener("New Finder Window", nil, #selector(openFinder), key: "o")
+        opener("Password Manager", manager.passwordInUse, #selector(openPassword), key: "p")
+        menu.addItem(.separator())
+
+        // Which app each key uses. "Automatic" is the first installed one Flow knows.
+        func chooser(_ title: String, choice: String, inUse: String?, installed: [String], _ action: Selector) {
+            let top = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            let sub = NSMenu()
+            let auto = NSMenuItem(title: "Automatic" + (inUse.map { "  ·  \($0)" } ?? ""), action: action, keyEquivalent: "")
+            auto.representedObject = "auto"
+            auto.state = choice == "auto" ? .on : .off
+            auto.target = self
+            sub.addItem(auto)
+            sub.addItem(.separator())
+            for name in installed {
+                let mi = NSMenuItem(title: name, action: action, keyEquivalent: "")
+                mi.representedObject = name
+                mi.state = choice == name ? .on : .off
+                mi.target = self
+                sub.addItem(mi)
+            }
+            if choice != "auto", !installed.contains(choice) {
+                let mi = NSMenuItem(title: "\(choice)  (not installed)", action: nil, keyEquivalent: "")
+                mi.state = .on
+                sub.addItem(mi)
+            }
+            top.submenu = sub
+            menu.addItem(top)
         }
-        terminal.submenu = terminals
-        menu.addItem(terminal)
+        chooser("Terminal", choice: manager.terminalChoice, inUse: manager.terminalInUse,
+                installed: Launcher.installedTerminals(), #selector(chooseTerminal(_:)))
+        chooser("Notes App", choice: manager.notesChoice, inUse: manager.notesInUse,
+                installed: Launcher.installedNotesApps(), #selector(chooseNotesApp(_:)))
+        chooser("Password Manager", choice: manager.passwordChoice, inUse: manager.passwordInUse,
+                installed: Launcher.installedPasswordManagers(), #selector(choosePasswordManager(_:)))
 
         let colour = NSMenuItem(title: "Focus Color", action: nil, keyEquivalent: "")
         let colours = NSMenu()
@@ -204,6 +225,17 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     @objc private func chooseTerminal(_ sender: NSMenuItem) {
         if let name = sender.representedObject as? String { manager?.setTerminal(name) }
     }
+    @objc private func chooseNotesApp(_ sender: NSMenuItem) {
+        if let name = sender.representedObject as? String { manager?.setNotesApp(name) }
+    }
+    @objc private func choosePasswordManager(_ sender: NSMenuItem) {
+        if let name = sender.representedObject as? String { manager?.setPasswordManager(name) }
+    }
+    @objc private func openTerminal() { manager?.perform(.terminal) }
+    @objc private func openBrowser() { manager?.perform(.browser) }
+    @objc private func openNote() { manager?.perform(.note) }
+    @objc private func openFinder() { manager?.perform(.finder) }
+    @objc private func openPassword() { manager?.perform(.password) }
     @objc private func reload() { manager?.perform(.reload) }
     @objc private func quit() { manager?.perform(.quit) }
 }

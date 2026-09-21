@@ -287,10 +287,15 @@ final class WindowManager {
         case .terminal: expectWindow(from: Launcher.openTerminal(config: config))
         case .browser: expectWindow(from: Launcher.openBrowser())
         case .note:
-            followHold = ("com.apple.Notes", Date().addingTimeInterval(6))
-            Launcher.openNote { [weak self] in self?.expectWindow(from: $0) }
+            if let id = Launcher.notesBundleID(for: config) { followHold = (id, Date().addingTimeInterval(6)) }
+            Launcher.openNote(config: config) { [weak self] in self?.expectWindow(from: $0) }
         case .finder: expectWindow(from: Launcher.openFinder())
-        case .password: summon(bundleID: "com.1password.1password")
+        case .password:
+            if let id = Launcher.passwordManagerBundleID(for: config) {
+                summon(bundleID: id)
+            } else {
+                log("password: no password manager installed" + (config.passwordManager == "auto" ? "" : " (\(config.passwordManager))"))
+            }
         case .attention(let tag, let priority, let message): requestAttention(tag: tag, priority: priority, message: message)
         case .attentionClear(let tag): clearAttention(tag: tag)
         case .attend: attend()
@@ -336,6 +341,26 @@ final class WindowManager {
         config.terminal = name
         Config.save("terminal", name)
         log("terminal: \(name == "auto" ? "automatic (\(terminalInUse ?? "none"))" : name)")
+    }
+
+    /// Notes app behind alt+n, "auto" for the first installed one.
+    var notesChoice: String { config.notesApp }
+    var notesInUse: String? { Launcher.notesAppName(for: config) }
+
+    func setNotesApp(_ name: String) {
+        config.notesApp = name
+        Config.save("notesApp", name)
+        log("notes: \(name == "auto" ? "automatic (\(notesInUse ?? "none"))" : name)")
+    }
+
+    /// Password manager behind alt+p, "auto" for the first installed one.
+    var passwordChoice: String { config.passwordManager }
+    var passwordInUse: String? { Launcher.passwordManagerName(for: config) }
+
+    func setPasswordManager(_ name: String) {
+        config.passwordManager = name
+        Config.save("passwordManager", name)
+        log("password: \(name == "auto" ? "automatic (\(passwordInUse ?? "none"))" : name)")
     }
 
     /// Captures every window of a workspace to ~/Desktop/flow-screenshots, one PNG per window.

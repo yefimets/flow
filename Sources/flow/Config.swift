@@ -26,6 +26,11 @@ struct Config {
     ]
     /// "auto" picks the first installed of Ghostty, Alacritty, kitty, WezTerm, iTerm, Terminal.
     var terminal = "auto"
+    /// App behind alt+n: "auto" picks the first installed of Notes, Bear, Obsidian; any other app name is
+    /// launched and its next window tiled.
+    var notesApp = "auto"
+    /// App behind alt+p: "auto" picks the first installed of the password managers Flow knows, or an app name.
+    var passwordManager = "auto"
     /// Fraction of the split moved per resize keypress.
     var resizeStep: CGFloat = 0.05
     /// Windows opened after flow starts float where the app put them; alt+v tiles one.
@@ -68,6 +73,8 @@ struct Config {
         c.newWindowsFloat = obj["newWindowsFloat"] as? Bool ?? c.newWindowsFloat
         c.optionHud = obj["optionHud"] as? Bool ?? c.optionHud
         c.terminal = obj["terminal"] as? String ?? c.terminal
+        c.notesApp = obj["notesApp"] as? String ?? c.notesApp
+        c.passwordManager = obj["passwordManager"] as? String ?? c.passwordManager
         if let radii = obj["borderRadii"] as? [String: NSNumber] {
             for (bundle, r) in radii { c.borderRadii[bundle] = CGFloat(r.doubleValue) }
         }
