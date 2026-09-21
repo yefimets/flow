@@ -8,6 +8,8 @@ enum Action {
     case resize(horizontal: Bool, grow: Bool)
     case terminal
     case browser
+    case note
+    case finder
     case close
     case fullscreen
     case toggleFloat
@@ -70,6 +72,8 @@ final class HotkeyTap {
         ("alt + shift + arrows", "swap with neighbour"),
         ("alt + return", "open a terminal window in the grid"),
         ("alt + b", "open a browser window in the grid"),
+        ("alt + n", "open a new note (Notes) in its own window in the grid"),
+        ("alt + o", "open a Finder window in the grid"),
         ("alt + tab", "jump to the window that asked for you (flow cmd attention)"),
         ("alt + w", "close window"),
         ("alt + f", "toggle fullscreen"),
@@ -78,7 +82,6 @@ final class HotkeyTap {
         ("alt + s", "swap the two columns"),
         ("alt + 1..9", "switch flow"),
         ("alt + shift + 1..9", "move window to flow"),
-        ("alt + n", "new flow"),
         ("alt + shift + w", "remove current flow and close its windows"),
         ("alt + = / -", "grow / shrink horizontally"),
         ("alt + shift + = / -", "grow / shrink vertically"),
@@ -208,12 +211,13 @@ final class HotkeyTap {
         case (36, false, false): return .terminal      // return
         case (13, false, false): return .close         // w
         case (11, false, false): return .browser       // b
+        case (45, false, false): return .note          // n
+        case (31, false, false): return .finder        // o
         case (48, false, false): return .attend        // tab
         case (3, false, false): return .fullscreen     // f
         case (9, false, false): return .toggleFloat    // v
         case (17, false, false): return .toggleSplit   // t
         case (1, false, false): return .swapColumns    // s
-        case (45, false, false): return .newWorkspace  // n
         case (44, false, false): return .shortcuts     // /
         case (13, true, false): return .removeWorkspace  // w
         case (24, false, false): return .resize(horizontal: true, grow: true)    // =

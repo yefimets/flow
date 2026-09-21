@@ -43,7 +43,7 @@ final class ShortcutsWindow {
         if panel == nil {
             // Borderless, like the focus ring: the one window kind this accessory app shows reliably.
             let p = KeyPanel(
-                contentRect: NSRect(x: 0, y: 0, width: 620, height: 720),
+                contentRect: NSRect(x: 0, y: 0, width: 620, height: 770),
                 styleMask: [.borderless], backing: .buffered, defer: false)
             p.isOpaque = false
             p.backgroundColor = .clear
@@ -87,7 +87,6 @@ private let sections: [Section] = [
     Section(title: "Flows", items: [
         Shortcut(keys: [["⌥", "1"], ["⌥", "9"]], text: "Switch to flow 1 … 9, creating it if it does not exist"),
         Shortcut(keys: [["⌥", "⇧", "1"], ["⌥", "⇧", "9"]], text: "Move the window to flow 1 … 9 and follow it"),
-        Shortcut(keys: [["⌥", "N"]], text: "New flow"),
         Shortcut(keys: [["⌥", "⇧", "W"]], text: "Remove the flow and close its windows"),
     ]),
     Section(title: "Focus", items: [
@@ -108,6 +107,8 @@ private let sections: [Section] = [
     Section(title: "Windows", items: [
         Shortcut(keys: [["⌥", "↩"]], text: "New terminal window, tiled"),
         Shortcut(keys: [["⌥", "B"]], text: "New browser window, tiled"),
+        Shortcut(keys: [["⌥", "N"]], text: "New note in its own window, tiled"),
+        Shortcut(keys: [["⌥", "O"]], text: "New Finder window, tiled"),
         Shortcut(keys: [["⌥", "⇥"]], text: "Jump to the window that asked for you (flow cmd attention)"),
         Shortcut(keys: [["⌥", "W"]], text: "Close the window"),
         Shortcut(keys: [["⌥", "F"]], text: "Toggle fullscreen"),
@@ -242,7 +243,7 @@ struct ShortcutsView: View {
             }
             .padding(EdgeInsets(top: 34, leading: 28, bottom: 28, trailing: 28))
         }
-        .frame(width: 620, height: 720)
+        .frame(width: 620, height: 770)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.primary.opacity(0.12)))

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.6 — 2026-09-21
+
+### Added
+- ⌥N opens a new note in its own Notes window, tiled into the grid. ⌥O opens a Finder window, tiled,
+  even though Finder windows float by rule otherwise. Also `flow cmd note` and `flow cmd finder`.
+
+### Changed
+- ⌥N no longer creates a flow. ⌥1–9 already creates the flow it switches to, and New Flow stays in the
+  menu and as `flow cmd new`.
+
+### Fixed
+- After `scripts/release.sh` the running Flow kept showing the previous version in the shortcuts sheet
+  until it was restarted by hand. The script now restarts it once the new build is notarized.
+
 ## 0.1.5 — 2026-09-21
 
 ### Changed

@@ -69,8 +69,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         move.isEnabled = count > 1
         menu.addItem(move)
 
-        let new = NSMenuItem(title: "New Flow", action: #selector(newWorkspace), keyEquivalent: "n")
-        new.keyEquivalentModifierMask = [.option]
+        let new = NSMenuItem(title: "New Flow", action: #selector(newWorkspace), keyEquivalent: "")
         new.target = self
         new.isEnabled = count < WindowManager.maxWorkspaces
         menu.addItem(new)

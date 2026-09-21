@@ -283,6 +283,8 @@ final class WindowManager {
         case .resize(let horizontal, let grow): resizeFocused(horizontal: horizontal, grow: grow)
         case .terminal: expectWindow(from: Launcher.openTerminal(config: config))
         case .browser: expectWindow(from: Launcher.openBrowser())
+        case .note: Launcher.openNote { [weak self] in self?.expectWindow(from: $0) }
+        case .finder: expectWindow(from: Launcher.openFinder())
         case .attention(let tag, let priority, let message): requestAttention(tag: tag, priority: priority, message: message)
         case .attentionClear(let tag): clearAttention(tag: tag)
         case .attend: attend()
@@ -871,8 +873,9 @@ final class WindowManager {
         AX.role(el) == kAXWindowRole && AX.subrole(el) == kAXStandardWindowSubrole
     }
 
-    private func shouldFloat(_ w: Window, app: AppEntry) -> String? {
-        if config.floatApps.contains(app.bundleID) { return "app rule" }
+    /// `requested` is a window you asked Flow for (alt+o opens Finder, which floats by rule otherwise).
+    private func shouldFloat(_ w: Window, app: AppEntry, requested: Bool = false) -> String? {
+        if !requested, config.floatApps.contains(app.bundleID) { return "app rule" }
         // Title rules are for dialogs and panels. A browser tab called "Settings" must not match,
         // so only windows well under the display size qualify.
         let title = w.title
@@ -950,7 +953,7 @@ final class WindowManager {
             }
             if ws.number != activeWorkspace { hide(w) }
             log("back   \(describe(w)) (flow \(ws.number)\(p.tiled ? ", tiled" : ", floating"))")
-        } else if let reason = shouldFloat(w, app: app) {
+        } else if let reason = shouldFloat(w, app: app, requested: requested) {
             w.floating = true
             w.ruleFloat = true
             log("float  \(describe(w)) (\(reason))")
