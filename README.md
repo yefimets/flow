@@ -80,7 +80,7 @@ scripts/build.sh      # swift build + a stable code signature, so the Accessibil
 - **Minimums respected, never clipped.** Chrome refuses to be narrower than about 626 px, Claude
   600 px, Notes 500 px tall. Flow learns each app's minimum from the first refusal and bends the grid
   around it. When two minimums cannot share a column, the least recently used window moves or floats.
-- **Explicit beats automatic.** A window you place on purpose, with ⌥V, ⌥B, ⌥↩ or a flow move, only
+- **Explicit beats automatic.** A window you place on purpose, with ⌥V, ⌥B, ⌥↩, ⌥;, ⌥O or a flow move, only
   takes a slot where it fits; if nothing fits, the tile you touched longest ago floats to make room.
 - **Mouse works too.** Drop a window on another tile to swap them. Drag an edge and the column or row
   boundary moves with it, so the neighbours follow.
@@ -108,6 +108,8 @@ scripts/build.sh      # swift build + a stable code signature, so the Accessibil
 | ⌥ S | Swap the two columns |
 | ⌥ ↩ | New terminal window, straight into the grid |
 | ⌥ B | New default-browser window, straight into the grid |
+| ⌥ ; | New note in its own Notes window, straight into the grid |
+| ⌥ O | New Finder window, straight into the grid |
 | ⌥ W | Close the window |
 | ⌥ F | Toggle fullscreen |
 | ⌥ V | Toggle floating. New windows float; this tiles them |
@@ -201,7 +203,7 @@ flow cmd screenshot 2        # one PNG per window of flow 2
 flow cmd flow 1              # back to where you were
 ```
 
-All commands: `flow N`, `move N`, `new`, `remove`, `screenshot [N]`, `browser`, `terminal`,
+All commands: `flow N`, `move N`, `new`, `remove`, `screenshot [N]`, `browser`, `terminal`, `note`, `finder`,
 `focus left|right|up|down`, `swap left|right|up|down`, `float`, `fullscreen`, `column`, `columns`,
 `shortcuts`, `reload`, `quit`. Inside the app bundle the binary is `Flow.app/Contents/MacOS/flow`;
 `screenshot` needs Screen Recording permission. Commands go over a distributed notification to the

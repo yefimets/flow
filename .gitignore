@@ -7,3 +7,4 @@ flow.log
 Resources/Logos/*.svg
 Resources/Logos/render
 Resources/Logos/*-black.svg
+.claude/

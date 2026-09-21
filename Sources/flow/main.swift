@@ -52,6 +52,8 @@ func action(fromCommand name: String, arg: String?, words: [String] = []) -> Act
     case "columns": return .swapColumns
     case "terminal": return .terminal
     case "browser": return .browser
+    case "note": return .note
+    case "finder": return .finder
     case "attention":
         let (flags, rest) = parseFlags(words)
         let tag = flags["tag"] ?? ""

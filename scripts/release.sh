@@ -13,6 +13,13 @@ sed -i '' -E "s#\*\*Latest release: \[[0-9.]+\]\(https://github.com/yefimets/flo
 scripts/make-app.sh
 scripts/notarize.sh
 cp build/Flow.zip "build/Flow-$VERSION.zip"
+# The Flow that is running is still the old binary; restart it so the app (and its shortcuts sheet) shows this version.
+if launchctl print "gui/$(id -u)/dev.flow.agent" >/dev/null 2>&1; then
+  launchctl kickstart -k "gui/$(id -u)/dev.flow.agent" && echo "Flow restarted as $VERSION"
+elif pgrep -qf "Flow.app/Contents/MacOS/flow"; then
+  build/Flow.app/Contents/MacOS/flow cmd quit >/dev/null 2>&1 || true; sleep 1
+  open build/Flow.app && echo "Flow restarted as $VERSION"
+fi
 git add -A
 git commit -q -m "Release $VERSION" || true
 git tag -a "v$VERSION" -m "Flow $VERSION"
