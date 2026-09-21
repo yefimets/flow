@@ -71,14 +71,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         move.isEnabled = count > 1
         menu.addItem(move)
 
-        let new = NSMenuItem(title: "New Flow", action: #selector(newWorkspace), keyEquivalent: "")
-        new.target = self
-        new.isEnabled = count < WindowManager.maxWorkspaces
-        menu.addItem(new)
-
         let windowsHere = manager.windowCount(inWorkspace: active)
         let remove = NSMenuItem(
-            title: "Remove Flow \(active)" + (windowsHere > 0 ? "  (closes \(windowsHere) window\(windowsHere == 1 ? "" : "s"))" : ""),
+            title: "Clean Flow \(active)" + (windowsHere > 0 ? "  (closes \(windowsHere) window\(windowsHere == 1 ? "" : "s"))" : ""),
             action: #selector(removeWorkspace), keyEquivalent: "w")
         remove.keyEquivalentModifierMask = [.option, .shift]
         remove.target = self
@@ -207,7 +202,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func switchWorkspace(_ sender: NSMenuItem) { manager?.perform(.workspace(sender.tag)) }
     @objc private func moveWindow(_ sender: NSMenuItem) { manager?.perform(.moveToWorkspace(sender.tag)) }
-    @objc private func newWorkspace() { manager?.perform(.newWorkspace) }
     @objc private func removeWorkspace() { manager?.perform(.removeWorkspace) }
     @objc private func chooseTerminal(_ sender: NSMenuItem) {
         if let name = sender.representedObject as? String { manager?.setTerminal(name) }
