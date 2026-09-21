@@ -3,8 +3,16 @@
 ## 0.1.6 — 2026-09-21
 
 ### Added
-- ⌥; opens a new note in its own Notes window, tiled into the grid. ⌥O opens a Finder window, tiled,
+- ⌥N opens a new note in its own Notes window, tiled into the grid. ⌥O opens a Finder window, tiled,
   even though Finder windows float by rule otherwise. Also `flow cmd note` and `flow cmd finder`.
+- ⌥P brings 1Password to the current flow, floating, launching it if needed. Also `flow cmd password`.
+
+### Changed
+- ⌥N no longer creates a flow. ⌥1–9 creates the flow it switches to; the menu and `flow cmd new` still add one.
+
+### Fixed
+- Closing a window no longer jumps to the flow holding another window of the same app (Finder did this
+  every time). Focus goes to the next window in the current flow instead.
 
 ### Fixed
 - After `scripts/release.sh` the running Flow kept showing the previous version in the shortcuts sheet

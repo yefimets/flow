@@ -195,6 +195,9 @@ final class WindowManager {
     /// An app we just asked for a window (alt+return, alt+b, flow cmd open): its next window is tiled,
     /// not floated, into `workspace` (the active one when nil), and announced when `announce` is set.
     private var expectTiled: (bundleID: String, until: Date, workspace: Int?, announce: String?)?
+    /// An app asked for a window here (alt+n: Notes raises its main window first, wherever that is). Its
+    /// focus wandering to a window in another flow meanwhile is not followed; the window it opens lands here.
+    private var followHold: (bundleID: String, until: Date)?
     /// Requests for the user's attention, most pressing first. ⌥⇥ takes the top one.
     private(set) var attention: [AttentionRequest] = []
 
@@ -283,8 +286,11 @@ final class WindowManager {
         case .resize(let horizontal, let grow): resizeFocused(horizontal: horizontal, grow: grow)
         case .terminal: expectWindow(from: Launcher.openTerminal(config: config))
         case .browser: expectWindow(from: Launcher.openBrowser())
-        case .note: Launcher.openNote { [weak self] in self?.expectWindow(from: $0) }
+        case .note:
+            followHold = ("com.apple.Notes", Date().addingTimeInterval(6))
+            Launcher.openNote { [weak self] in self?.expectWindow(from: $0) }
         case .finder: expectWindow(from: Launcher.openFinder())
+        case .password: summon(bundleID: "com.1password.1password")
         case .attention(let tag, let priority, let message): requestAttention(tag: tag, priority: priority, message: message)
         case .attentionClear(let tag): clearAttention(tag: tag)
         case .attend: attend()
@@ -746,6 +752,12 @@ final class WindowManager {
 
     private func moveFocused(toWorkspace n: Int) {
         guard let w = focused, n >= 1, n <= Self.maxWorkspaces, n != w.workspace else { return }
+        move(w, toWorkspace: n)
+        // Follow the window: switching hides the workspace we leave and lays out the one we enter.
+        switchWorkspace(to: n)
+    }
+
+    private func move(_ w: Window, toWorkspace n: Int) {
         _ = workspace(n)
         // A window moved on purpose goes into the grid there, unless a rule keeps it floating.
         let keepTiled = !w.ruleFloat
@@ -760,8 +772,23 @@ final class WindowManager {
         workspace(n).lastFocused = w.id
         if let oldDisplay { pullOverflow(oldWorkspace, oldDisplay) }
         log("move   \(describe(w)) to flow \(n)")
-        // Follow the window: switching hides the workspace we leave and lays out the one we enter.
-        switchWorkspace(to: n)
+    }
+
+    /// Brings an app's window to the current flow (alt+p: 1Password), launching the app when it has none.
+    /// The window keeps its kind: one floating by rule floats here, a tiled one takes a slot.
+    private func summon(bundleID: String) {
+        let ours = windows.values.filter { apps[$0.pid]?.bundleID == bundleID }
+        guard let w = ours.first(where: { $0.workspace == activeWorkspace }) ?? ours.max(by: { $0.priority < $1.priority }) else {
+            Launcher.openApp(bundleID: bundleID)
+            return
+        }
+        if w.workspace != activeWorkspace {
+            move(w, toWorkspace: activeWorkspace)
+            unhide(w)
+            scheduleRelayout()
+            scheduleSave()
+        }
+        focus(w)
     }
 
     /// Parks a window in the bottom-right corner of its display, remembering where a floating one was.
@@ -959,6 +986,7 @@ final class WindowManager {
             log("float  \(describe(w)) (\(reason))")
         } else if let expect = expectTiled, expect.bundleID == app.bundleID, Date() < expect.until {
             expectTiled = nil
+            if followHold?.bundleID == app.bundleID { followHold = nil }
             w.priority = Date().timeIntervalSince1970
             let ws = expect.workspace.map { workspace(min(max($0, 1), workspaces.count)) } ?? active
             tile(w, at: frame.center, in: ws, explicit: true)
@@ -1428,6 +1456,8 @@ final class WindowManager {
                     return
                 }
                 if Date().timeIntervalSince(lastWorkspaceSwitch) < 1.5 {
+                    focusedID = nil
+                } else if let hold = followHold, Date() < hold.until, apps[w.pid]?.bundleID == hold.bundleID {
                     focusedID = nil
                 } else if pickedWindow, Date().timeIntervalSince(lastFocusSwitch) > 1 {
                     lastFocusSwitch = Date()

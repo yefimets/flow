@@ -54,6 +54,7 @@ func action(fromCommand name: String, arg: String?, words: [String] = []) -> Act
     case "browser": return .browser
     case "note": return .note
     case "finder": return .finder
+    case "password", "1password": return .password
     case "attention":
         let (flags, rest) = parseFlags(words)
         let tag = flags["tag"] ?? ""

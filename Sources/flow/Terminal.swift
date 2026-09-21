@@ -92,6 +92,11 @@ enum Launcher {
         return "com.apple.finder"
     }
 
+    /// Launches or activates an app by bundle identifier.
+    static func openApp(bundleID: String) {
+        run("/usr/bin/open", ["-b", bundleID])
+    }
+
     /// The first menu item, in any menu of the app's menu bar, whose title contains `text`.
     private static func menuItem(pid: pid_t, titled text: String) -> AXUIElement? {
         let bar = AX.element(AXUIElementCreateApplication(pid), kAXMenuBarAttribute)
