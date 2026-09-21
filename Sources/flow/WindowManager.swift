@@ -1027,14 +1027,35 @@ final class WindowManager {
             if attention.isEmpty { BuzzWindow.shared.hide() }
             status?.update()
         }
+        // The window that had the keyboard is gone: hand it to the next window here, before its app
+        // does (an app moves focus to another of its windows, wherever that one lives).
+        let hadFocus = focusedID == w.id
+            || (focusedID == nil && NSWorkspace.shared.frontmostApplication?.processIdentifier == w.pid)
         if focusedID == w.id {
             focusedID = nil
             border.hide()
         }
         log("drop   \(describe(w)) (\(reason))")
         if let display { pullOverflow(ws, display) }
+        if hadFocus, !w.hidden, ws.number == activeWorkspace, ["closed", "gone", "minimized"].contains(reason) {
+            focusNext(in: ws)
+        }
         scheduleRelayout()
         scheduleSave()
+    }
+
+    /// Focus the most recently used visible window of a workspace, or take focus ourselves when it has
+    /// none, so the app whose window just went cannot pull us to its windows in other flows.
+    private func focusNext(in ws: Workspace) {
+        let candidates = windows.values.filter { $0.workspace == ws.number && !$0.hidden }
+        if let next = candidates.max(by: { $0.priority < $1.priority }) {
+            focus(next)
+            log("focus  \(describe(next)) (next in flow \(ws.number))")
+        } else {
+            focusedID = nil
+            NSApp.activate(ignoringOtherApps: true)
+            updateBorder()
+        }
     }
 
     /// Puts a window into a workspace's grid on the display under `point`. When the grid is full, an
@@ -1390,12 +1411,22 @@ final class WindowManager {
             updateBorder()
             return
         }
+        let previous = focused
         focusedID = id
         if let w = windows[id] {
             if w.hidden, w.workspace != activeWorkspace {
                 // The app's key window lives in another workspace. A window the user picked on purpose
                 // is followed to its workspace. On a plain app switch (Cmd-Tab), prefer the app's window
                 // here; otherwise follow. Never more than once a second so two windows cannot ping-pong.
+                if let previous, previous.id != id, previous.pid == w.pid, !previous.hidden,
+                   previous.workspace == activeWorkspace,
+                   AX.role(previous.ax) == nil || !onScreenWindowIDs().contains(previous.id) {
+                    // The app moved its focus because the window that had it just closed. The close is
+                    // reported after this, so it is taken here: not a pick, and this flow keeps the keyboard.
+                    focusedID = previous.id
+                    untrack(previous, reason: "closed")
+                    return
+                }
                 if Date().timeIntervalSince(lastWorkspaceSwitch) < 1.5 {
                     focusedID = nil
                 } else if pickedWindow, Date().timeIntervalSince(lastFocusSwitch) > 1 {
