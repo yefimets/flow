@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.6 — 2026-09-21
+## 0.1.16 — 2026-09-21
 
 ### Added
 - ⌥N opens a new note in its own Notes window, tiled into the grid. ⌥O opens a Finder window, tiled,
