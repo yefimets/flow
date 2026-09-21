@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.5 — 2026-09-21
 
 ### Changed
 - "Launch at Login" is now "Launch on Start", in the menu and in `flow login`.
