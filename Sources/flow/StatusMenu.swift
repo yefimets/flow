@@ -44,8 +44,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         let count = manager.workspaceCount
         let active = manager.activeWorkspace
 
+        // Empty flows are left out; the active one is always listed so the check mark has a row.
         for n in manager.flowNumbers {
             let windows = manager.windowCount(inWorkspace: n)
+            if windows == 0, n != active { continue }
             let label = "Flow \(n)" + (windows > 0 ? "  ·  \(windows) window\(windows == 1 ? "" : "s")" : "")
             let mi = NSMenuItem(title: label, action: #selector(switchWorkspace(_:)), keyEquivalent: "\(n)")
             mi.keyEquivalentModifierMask = [.option]
