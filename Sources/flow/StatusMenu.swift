@@ -96,7 +96,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         opener("New Browser Window", nil, #selector(openBrowser), key: "b")
         opener("New Note", manager.notesInUse, #selector(openNote), key: "n")
         opener("New Finder Window", nil, #selector(openFinder), key: "o")
-        opener("Password Manager", manager.passwordInUse, #selector(openPassword), key: "p")
         menu.addItem(.separator())
 
         // Which app each key uses. "Automatic" is the first installed one Flow knows.
@@ -126,7 +125,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         }
         chooser("Terminal", choice: manager.terminalChoice, inUse: manager.terminalInUse,
                 installed: Launcher.installedTerminals(), #selector(chooseTerminal(_:)))
-        chooser("Notes App", choice: manager.notesChoice, inUse: manager.notesInUse,
+        chooser("Notes", choice: manager.notesChoice, inUse: manager.notesInUse,
                 installed: Launcher.installedNotesApps(), #selector(chooseNotesApp(_:)))
         chooser("Password Manager", choice: manager.passwordChoice, inUse: manager.passwordInUse,
                 installed: Launcher.installedPasswordManagers(), #selector(choosePasswordManager(_:)))
@@ -235,7 +234,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     @objc private func openBrowser() { manager?.perform(.browser) }
     @objc private func openNote() { manager?.perform(.note) }
     @objc private func openFinder() { manager?.perform(.finder) }
-    @objc private func openPassword() { manager?.perform(.password) }
     @objc private func reload() { manager?.perform(.reload) }
     @objc private func quit() { manager?.perform(.quit) }
 }
