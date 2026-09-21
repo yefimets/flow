@@ -5,9 +5,9 @@
 <h1 align="center">Flow</h1>
 
 <p align="center">
-  <b>An AI-first flow operator for macOS.</b> Open source.<br>
-  Windows tile into a 2×2 grid, work lives in flows you switch with ⌥1–9,<br>
-  and every action is a command an agent can run.
+  <b>The agentic-first flow operator for macOS.</b> Open source.<br>
+  Your windows tile into a 2×2 grid. Your work lives in flows you switch with ⌥1–9.<br>
+  You decide what is on the screen. Nothing else does.
 </p>
 
 <p align="center">
@@ -21,33 +21,37 @@
 
 **Latest release: [0.1.4](https://github.com/yefimets/flow/releases/tag/v0.1.4)** · [changelog](CHANGELOG.md) · [download Flow.zip](https://github.com/yefimets/flow/releases/latest/download/Flow-0.1.4.zip)
 
-Flow treats your screen as a set of **flows**: a flow is one piece of work, with the two to four
-windows it needs, laid out in a grid. You jump between flows with a number key. An AI agent can do the
-same, because everything Flow does is also a command: create a flow, move a window into it, open a
-browser or terminal there, focus, swap, screenshot every window of a flow. Ask Claude Code to "set up a
-flow with the parking contract email and the Messages thread about it" and it can, without touching
-your mouse.
+Your screen is a mirror of your mind.
 
-It brings the Omarchy and Hyprland way of working to macOS, through the Accessibility API, with no
-System Integrity Protection changes and no kernel tricks. One signed, notarized app, one ⌥ menu bar
-icon, ⌥ for everything, MIT licensed.
+Look at it right now. Fourteen browser tabs. Three terminals you forgot you opened. A chat window
+behind a PDF behind a notes app. You did not choose that. It accumulated. And every time you reach
+for the mouse to find the window you need, a small piece of your attention leaks out and never comes back.
 
-## AI-first
+Most people accept this as the cost of doing work on a computer. It is not. It is the cost of never
+deciding how the work should look.
 
-Every keyboard action has a command twin, so an agent with a shell drives Flow exactly as you do:
+Flow is that decision, made once.
 
-```bash
-flow cmd new                 # a fresh flow for the task at hand
-flow cmd browser             # a browser window, tiled into it
-flow cmd move 2              # move the focused window to flow 2 and follow it
-flow cmd screenshot 2        # one PNG per window of flow 2, for the agent to read
-flow cmd flow 1              # back to where you were
-```
+**A flow is one piece of work.** The two, three or four windows it needs, and nothing else. A terminal
+and a browser. An editor and the docs. The email and the contract it is about. Each flow lives on its own
+number. Press ⌥1 and you are in the first thing. Press ⌥2 and the first thing is gone, entirely, and the
+second thing is in front of you, exactly as you left it.
 
-Commands go over a distributed notification to the running app, return instantly, and are logged, so
-an agent can verify what happened in `~/Library/Logs/Flow.log`. Combined with window-level tools such as
-Claude Code's computer use, that is enough to assemble a working context from email, chat and browser
-windows, or to tidy a screen back into flows after a long session.
+**Windows tile themselves.** Two side by side. A third goes under the one you are in. You never drag a
+corner again. If an app refuses to be small, Flow learns its minimum and bends the grid around it.
+
+**The keyboard runs everything.** ⌥ and a key. New terminal. New browser. Move this window into flow 3
+and follow it. Swap. Focus. Float. Close. Hold ⌥ on its own and the whole map appears; let go and it is gone.
+
+**It survives.** Lock, sleep, restart, the overnight app update that relaunches Chrome. Every window
+comes back to the flow and the slot it had. Your structure does not reset when the machine does.
+
+This is the Omarchy and Hyprland way of working, brought to macOS through the Accessibility API. No
+System Integrity Protection changes, no kernel tricks. One signed, notarized app, one menu bar icon, MIT
+licensed.
+
+Agency is not a personality trait. It is a set of defaults you chose on purpose. Flow gives your
+screen defaults worth having.
 
 ## Install
 
@@ -109,6 +113,7 @@ scripts/build.sh      # swift build + a stable code signature, so the Accessibil
 | ⌥ V | Toggle floating. New windows float; this tiles them |
 | ⌥ = / ⌥ - | Widen / narrow the column |
 | ⌥ ⇧ = / ⌥ ⇧ - | Grow / shrink the row |
+| ⌥ ⇥ | Jump to the window that asked for you (see Scripting) |
 | ⌥ / | Show or hide the shortcuts sheet |
 | ⌥ ⇧ R | Reload the config file |
 | ⌃ ⌥ Q | Quit Flow |
@@ -129,11 +134,13 @@ Window menu or Mission Control always follows it.
 Removing a flow closes the windows in it. A window that stays open because its app asked about
 unsaved changes moves to the nearest other flow instead, so nothing is stranded. Other flows keep their numbers.
 
-## Launch at login
+## Launch on Start
 
-The menu bar item has a **Launch at Login** toggle. As an app it registers with macOS and appears under
-System Settings › General › Login Items. As a terminal build it installs a LaunchAgent that starts it at
-login and restarts it if it ever crashes; `flow login on|off` does the same from a shell.
+The menu bar item has a **Launch on Start** toggle. As an app it registers with macOS and appears under
+System Settings › General › Login Items. As a terminal build it installs a LaunchAgent that starts it
+when you log in and brings it back after a crash; `flow login on|off` does the same from a shell.
+Quitting Flow, from the menu, with ⌃⌥Q or with `flow cmd quit`, is final until the next start. Turning
+the toggle off removes whichever of the two was installed.
 
 For day-to-day development use `scripts/dev-build.sh`: it builds, drops the binary into `build/Flow.app`,
 re-signs the bundle and restarts the agent. Running the dev build inside the signed bundle is what keeps
@@ -181,28 +188,36 @@ Flow's own state, which window sits in which flow and slot, lives in `~/.config/
 restored on every launch. Delete it to get the first-run split again. Logs go to `~/Library/Logs/Flow.log`
 when running as an app, or to the terminal.
 
-## For agents: attention and pages
+## Scripting
 
-Any agent with a shell can ask for you and show you things. The `skills/flow/SKILL.md` file teaches
-Claude Code agents when and how; copy it to `~/.claude/skills/flow/` and every session has it.
+Everything a key does, a shell line does too. Bind them in Raycast, Keyboard Maestro, a Makefile, a
+build script, whatever you already use to shape your day:
 
 ```bash
-printf '\033]0;flow:my-task\007'                                        # tag the terminal window title once
-flow cmd attention --tag flow:my-task --priority 2 "Need your OK to push"  # buzz card in the corner + sound
-flow cmd attention --clear --tag flow:my-task                             # withdraw it
-flow cmd open https://github.com/org/repo/pull/42 --tag flow:my-task      # page in a column next to that window
+flow cmd new                 # a fresh flow for the task at hand
+flow cmd browser             # a browser window, tiled into it
+flow cmd move 2              # move the focused window to flow 2 and follow it
+flow cmd screenshot 2        # one PNG per window of flow 2
+flow cmd flow 1              # back to where you were
 ```
-
-**⌥⇥** jumps to the window behind the most pressing request, switching flows if needed, and drops it
-from the queue. The menu bar shows how many requests are waiting. Priority 3 is urgent (red, louder,
-stays longer), 2 a decision, 1 "done, look when you like".
-
-## Scripting
 
 All commands: `flow N`, `move N`, `new`, `remove`, `screenshot [N]`, `browser`, `terminal`,
 `focus left|right|up|down`, `swap left|right|up|down`, `float`, `fullscreen`, `column`, `columns`,
 `shortcuts`, `reload`, `quit`. Inside the app bundle the binary is `Flow.app/Contents/MacOS/flow`;
-`screenshot` needs Screen Recording permission.
+`screenshot` needs Screen Recording permission. Commands go over a distributed notification to the
+running app, return instantly, and are logged to `~/Library/Logs/Flow.log`.
+
+A long build, a deploy, a test run in a flow you are not looking at can call you back when it is done:
+
+```bash
+printf '\033]0;flow:deploy\007'                                     # tag that terminal's title once
+make deploy; flow cmd attention --tag flow:deploy --priority 1 "Deploy finished"
+flow cmd attention --clear --tag flow:deploy                       # withdraw it
+flow cmd open https://example.com/dashboard --tag flow:deploy      # a page in a column next to that window
+```
+
+A small card appears in the corner with a sound. **⌥⇥** jumps to the window behind it, switching flows
+if needed. Priority 3 is urgent (red, louder, stays longer), 2 a decision, 1 "done, look when you like".
 
 ## How it works
 

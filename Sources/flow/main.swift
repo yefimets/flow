@@ -77,7 +77,7 @@ if arguments.contains("--help") || arguments.contains("-h") {
 
     usage: flow [--dry-run]
            flow cmd <command> [arg]      send a command to the running instance
-           flow login on|off             launch Flow at login (and keep it running)
+           flow login on|off             launch Flow on start (when you log in)
 
       --dry-run   observe and log the layout it would apply, but never move a window
 
@@ -93,7 +93,7 @@ if arguments.first == "login" {
     switch arguments.dropFirst().first {
     case "on": print(LoginItem.set(true, forceAgent: arguments.contains("--agent")))
     case "off": print(LoginItem.set(false))
-    default: print("launch at login: \(LoginItem.isEnabled ? "on" : "off")\nusage: flow login on|off")
+    default: print("launch on start: \(LoginItem.isEnabled ? "on" : "off")\nusage: flow login on|off")
     }
     exit(0)
 }

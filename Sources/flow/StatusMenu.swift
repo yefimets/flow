@@ -135,7 +135,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         sheet.target = self
         menu.addItem(sheet)
 
-        let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
+        let login = NSMenuItem(title: "Launch on Start", action: #selector(toggleLogin), keyEquivalent: "")
         login.state = LoginItem.isEnabled ? .on : .off
         login.target = self
         menu.addItem(login)

@@ -68,6 +68,11 @@ enum Launcher {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: path)
         p.arguments = args
+        // Apps Flow opens must not look like the LaunchAgent to `flow login` typed in them.
+        var env = ProcessInfo.processInfo.environment
+        env.removeValue(forKey: "FLOW_LAUNCH_AGENT")
+        env.removeValue(forKey: "XPC_SERVICE_NAME")
+        p.environment = env
         do { try p.run() } catch { log("launcher: failed to run \(path): \(error)") }
     }
 }

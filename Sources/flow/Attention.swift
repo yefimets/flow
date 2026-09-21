@@ -1,7 +1,7 @@
 import Cocoa
 import SwiftUI
 
-/// A request from an agent (or anything with a shell) for the user's attention.
+/// A request from a script (anything with a shell) for the user's attention.
 struct AttentionRequest {
     let id = UUID()
     let windowID: CGWindowID?

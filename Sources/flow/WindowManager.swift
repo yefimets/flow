@@ -307,6 +307,15 @@ final class WindowManager {
         case .quit:
             saveState()
             log("quit")
+            // Under the LaunchAgent launchd would start Flow again the moment it exits, so a clean quit
+            // unloads the job; RunAtLoad brings it back at the next start.
+            if LoginItem.runningUnderAgent {
+                let p = Process()
+                p.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+                p.arguments = ["bootout", "gui/\(getuid())/\(LoginItem.label)"]
+                try? p.run()
+                p.waitUntilExit()
+            }
             exit(0)
         }
     }

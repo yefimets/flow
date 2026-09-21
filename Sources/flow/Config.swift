@@ -131,6 +131,6 @@ func log(_ message: @autoclosure () -> String) {
     print(line)
     fflush(stdout)
     // Under the LaunchAgent stdout is already the log file; appending again would double every line.
-    if isatty(1) == 0, ProcessInfo.processInfo.environment["FLOW_LAUNCH_AGENT"] != "1",
+    if isatty(1) == 0, !LoginItem.runningUnderAgent,
        let data = (line + "\n").data(using: .utf8) { logFile?.write(data) }
 }

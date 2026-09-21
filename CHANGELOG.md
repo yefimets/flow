@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- "Launch at Login" is now "Launch on Start", in the menu and in `flow login`.
+- The README speaks to the person at the keyboard: flows, tiles, keys and scripting. The Claude Code
+  skill and the agent sections are gone.
+
+### Fixed
+- Quitting Flow while it runs under the LaunchAgent no longer brings it straight back. The agent now
+  restarts Flow only after a crash; Quit Flow, ⌃⌥Q and `flow cmd quit` stay quit until the next start.
+- `flow login` typed in a terminal that Flow itself opened behaved as if it were the LaunchAgent (the
+  terminal inherited the agent's environment) and silently did nothing. Apps Flow opens no longer inherit
+  it, and the check now also requires launchd as the parent.
+- Launch on Start could not be turned off when the app bundle ran under a LaunchAgent (the dev build):
+  off removed the login item and left the agent. Off now removes both.
+
 ## 0.1.4 — 2026-09-20
 
 ### Added

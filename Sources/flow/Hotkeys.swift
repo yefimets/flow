@@ -70,7 +70,7 @@ final class HotkeyTap {
         ("alt + shift + arrows", "swap with neighbour"),
         ("alt + return", "open a terminal window in the grid"),
         ("alt + b", "open a browser window in the grid"),
-        ("alt + tab", "jump to the window that asked for you (agents: flow cmd attention)"),
+        ("alt + tab", "jump to the window that asked for you (flow cmd attention)"),
         ("alt + w", "close window"),
         ("alt + f", "toggle fullscreen"),
         ("alt + v", "toggle floating"),
