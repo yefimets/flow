@@ -68,7 +68,8 @@ enum Launcher {
     static func openNote(expect: @escaping (String?) -> Void) {
         let bundleID = "com.apple.Notes"
         // No `activate`: raising Notes' main window would switch Flow to that window's flow first.
-        osascript("tell application \"Notes\"\n set n to make new note at default folder of default account\n show n\nend tell")
+        // Without a body Notes types "New Note" into the note; a blank line leaves it empty.
+        osascript("tell application \"Notes\"\n set n to make new note at default folder of default account with properties {body:\"<div><br></div>\"}\n show n\nend tell")
         var tries = 0
         func attempt() {
             tries += 1
