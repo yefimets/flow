@@ -76,7 +76,8 @@ scripts/build.sh      # swift build + a stable code signature, so the Accessibil
 - **2×2 grid.** At most two columns, at most two rows per column. New windows go side by side first,
   then under the focused window. A fifth window floats and takes the next free slot.
 - **Flows.** Up to nine workspaces. Each has its own grid and floating windows. Switch with ⌥1–9, move
-  a window and follow it with ⌥⇧1–9. The menu bar shows the active number.
+  a window and follow it with ⌥⇧1–9, swap the whole flow with another number with ⌥A then 1–9.
+  The menu bar shows the active number.
 - **Minimums respected, never clipped.** Chrome refuses to be narrower than about 626 px, Claude
   600 px, Notes 500 px tall. Flow learns each app's minimum from the first refusal and bends the grid
   around it. When two minimums cannot share a column, the least recently used window moves or floats.
@@ -203,6 +204,7 @@ build script, whatever you already use to shape your day:
 flow cmd new                 # a fresh flow for the task at hand
 flow cmd browser             # a browser window, tiled into it
 flow cmd move 2              # move the focused window to flow 2 and follow it
+flow cmd swapflow 3          # swap the current flow with flow 3; you stay on it, now numbered 3
 flow cmd screenshot 2        # one PNG per window of flow 2
 flow cmd flow 1              # back to where you were
 ```

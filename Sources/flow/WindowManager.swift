@@ -307,6 +307,7 @@ final class WindowManager {
         case .swapColumns: swapColumns()
         case .workspace(let n): switchWorkspace(to: n)
         case .moveToWorkspace(let n): moveFocused(toWorkspace: n)
+        case .swapWorkspace(let n): swapActiveWorkspace(with: n)
         case .newWorkspace: newWorkspace()
         case .removeWorkspace: removeCurrentWorkspace()
         case .screenshot(let n): screenshot(workspace: n ?? activeWorkspace)
@@ -780,6 +781,35 @@ final class WindowManager {
         move(w, toWorkspace: n)
         // Follow the window: switching hides the workspace we leave and lays out the one we enter.
         switchWorkspace(to: n)
+    }
+
+    /// Swaps the active flow with flow `n`: its windows, grids and layout take number `n`, and flow `n`'s
+    /// take the active number (a missing flow `n` is just a renumber). Nothing moves on screen; the
+    /// active flow keeps showing and now has number `n`.
+    private func swapActiveWorkspace(with n: Int) {
+        let a = activeWorkspace
+        guard n >= 1, n <= Self.maxWorkspaces, n != a, let ws = workspaces[a] else { return }
+        let other = workspaces[n]
+        workspaces[n] = ws
+        ws.number = n
+        workspaces[a] = other
+        other?.number = a
+        func flipped(_ x: Int) -> Int { x == a ? n : x == n ? a : x }
+        for w in windows.values { w.workspace = flipped(w.workspace) }
+        func flippedPlacement(_ p: Placement) -> Placement {
+            var q = Placement(workspace: flipped(p.workspace), tiled: p.tiled, column: p.column, row: p.row, frame: p.frame,
+                              minSize: p.minSize, priority: p.priority, ruleFloat: p.ruleFloat)
+            q.bundleID = p.bundleID; q.title = p.title; q.pid = p.pid
+            return q
+        }
+        remembered = remembered.mapValues(flippedPlacement)
+        rememberedByApp = rememberedByApp.mapValues { $0.map(flippedPlacement) }
+        if let f = pendingFollow { pendingFollow = (f.pid, flipped(f.workspace)) }
+        if let e = expectTiled { expectTiled = (e.bundleID, e.until, e.workspace.map(flipped), e.announce) }
+        activeWorkspace = n
+        status?.update()
+        scheduleSave()
+        log("flow \(a) swapped with flow \(n)" + (other == nil ? " (renumbered)" : ""))
     }
 
     private func move(_ w: Window, toWorkspace n: Int) {

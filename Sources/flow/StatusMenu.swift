@@ -58,18 +58,22 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         }
         menu.addItem(.separator())
 
-        let move = NSMenuItem(title: "Move Window to Flow", action: nil, keyEquivalent: "")
+        // ⌥A then a digit does the same from the keyboard; menus cannot show a chord, so the header says it.
+        let swap = NSMenuItem(title: "Move Flow \(active) to", action: nil, keyEquivalent: "")
         let sub = NSMenu()
-        for n in manager.flowNumbers where n != active {
-            let mi = NSMenuItem(title: "Flow \(n)", action: #selector(moveWindow(_:)), keyEquivalent: "\(n)")
-            mi.keyEquivalentModifierMask = [.option, .shift]
+        let hint = NSMenuItem(title: "⌥A, then 1–9", action: nil, keyEquivalent: "")
+        hint.isEnabled = false
+        sub.addItem(hint)
+        for n in 1...WindowManager.maxWorkspaces where n != active {
+            let windows = manager.windowCount(inWorkspace: n)
+            let label = "Flow \(n)" + (windows > 0 ? "  ·  \(windows) window\(windows == 1 ? "" : "s")" : "")
+            let mi = NSMenuItem(title: label, action: #selector(swapWorkspace(_:)), keyEquivalent: "")
             mi.tag = n
             mi.target = self
             sub.addItem(mi)
         }
-        move.submenu = sub
-        move.isEnabled = count > 1
-        menu.addItem(move)
+        swap.submenu = sub
+        menu.addItem(swap)
 
         let windowsHere = manager.windowCount(inWorkspace: active)
         let remove = NSMenuItem(
@@ -201,7 +205,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func switchWorkspace(_ sender: NSMenuItem) { manager?.perform(.workspace(sender.tag)) }
-    @objc private func moveWindow(_ sender: NSMenuItem) { manager?.perform(.moveToWorkspace(sender.tag)) }
+    @objc private func swapWorkspace(_ sender: NSMenuItem) { manager?.perform(.swapWorkspace(sender.tag)) }
     @objc private func removeWorkspace() { manager?.perform(.removeWorkspace) }
     @objc private func chooseTerminal(_ sender: NSMenuItem) {
         if let name = sender.representedObject as? String { manager?.setTerminal(name) }

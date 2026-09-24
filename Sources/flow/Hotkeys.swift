@@ -18,6 +18,7 @@ enum Action {
     case swapColumns
     case workspace(Int)
     case moveToWorkspace(Int)
+    case swapWorkspace(Int)
     case newWorkspace
     case removeWorkspace
     case screenshot(Int?)
@@ -54,6 +55,8 @@ final class HotkeyTap {
         return name
     }
     private var holding = false
+    /// ⌥A was pressed: the next digit swaps the current flow with that one.
+    private var swapArmedUntil: Date?
     private var holdTimer: Timer?
 
     private func endHold() {
@@ -84,6 +87,7 @@ final class HotkeyTap {
         ("alt + s", "swap the two columns"),
         ("alt + 1..9", "switch flow"),
         ("alt + shift + 1..9", "move window to flow"),
+        ("alt + a, then 1..9", "swap the current flow with that flow"),
         ("alt + shift + w", "remove current flow and close its windows"),
         ("alt + = / -", "grow / shrink horizontally"),
         ("alt + shift + = / -", "grow / shrink vertically"),
@@ -179,12 +183,26 @@ final class HotkeyTap {
         }
         guard type == .keyDown else { return Unmanaged.passUnretained(event) }
         if holding { endHold() }
-        guard flags.contains(.maskAlternate), !flags.contains(.maskCommand) else {
-            return Unmanaged.passUnretained(event)
-        }
         let shift = flags.contains(.maskShift)
         let ctrl = flags.contains(.maskControl)
         let code = event.getIntegerValueField(.keyboardEventKeycode)
+        // ⌥A, then a digit (⌥ still held or not): swap flows. Any other key cancels.
+        if let until = swapArmedUntil {
+            swapArmedUntil = nil
+            if Date() < until, !shift, !ctrl, !flags.contains(.maskCommand), let n = Self.digits[code] {
+                let handler = self.handler
+                log("key    alt+a, \(n) -> swapWorkspace(\(n))")
+                DispatchQueue.main.async { handler(.swapWorkspace(n)) }
+                return nil
+            }
+        }
+        guard flags.contains(.maskAlternate), !flags.contains(.maskCommand) else {
+            return Unmanaged.passUnretained(event)
+        }
+        if code == 0, !shift, !ctrl {   // a
+            swapArmedUntil = Date().addingTimeInterval(2)
+            return nil
+        }
         guard let action = Self.action(keycode: code, shift: shift, ctrl: ctrl) else {
             return Unmanaged.passUnretained(event)
         }
@@ -195,6 +213,8 @@ final class HotkeyTap {
     }
 
     // US ANSI virtual key codes.
+    private static let digits: [Int64: Int] = [18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9]
+
     private static func action(keycode: Int64, shift: Bool, ctrl: Bool) -> Action? {
         let dir: Direction?
         switch keycode {
@@ -206,7 +226,6 @@ final class HotkeyTap {
         }
         if let dir, !ctrl { return shift ? .swap(dir) : .focus(dir) }
 
-        let digits: [Int64: Int] = [18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9]
         if let n = digits[keycode], !ctrl { return shift ? .moveToWorkspace(n) : .workspace(n) }
 
         switch (keycode, shift, ctrl) {

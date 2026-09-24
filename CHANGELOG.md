@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.17 — 2026-09-24
+
+### Added
+- ⌥A, then 1–9 swaps the current flow with that flow: its windows and layout take the new number and
+  the other flow's take the old one. Also "Move Flow N to" in the menu and `flow cmd swapflow 3`.
+
+### Changed
+- "Move Window to Flow" is no longer in the menu; ⌥⇧1–9 and `flow cmd move` still do it.
+
 ## 0.1.16 — 2026-09-21
 
 ### Added

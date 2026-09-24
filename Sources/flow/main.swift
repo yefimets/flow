@@ -8,7 +8,7 @@ func sendCommand(_ args: [String]) -> Never {
         print("  attention --tag TAG [--priority 1|2|3] MESSAGE   ask for the user; alt+tab jumps to the window whose title contains TAG")
         print("  attention --clear --tag TAG                     withdraw the request")
         print("  open URL [--tag TAG]                            open URL in a browser column next to the tagged window")
-        print("usage: flow cmd <flow N | move N | new | remove | screenshot [N] | focus DIR | swap DIR | float | fullscreen | columns | terminal | close | reload | quit>")
+        print("usage: flow cmd <flow N | move N | swapflow N | new | remove | screenshot [N] | focus DIR | swap DIR | float | fullscreen | columns | terminal | close | reload | quit>")
         exit(2)
     }
     var info: [String: String] = ["name": name]
@@ -40,6 +40,7 @@ func action(fromCommand name: String, arg: String?, words: [String] = []) -> Act
     switch name {
     case "flow", "workspace": return arg.flatMap(Int.init).map { .workspace($0) }
     case "move": return arg.flatMap(Int.init).map { .moveToWorkspace($0) }
+    case "swapflow": return arg.flatMap(Int.init).map { .swapWorkspace($0) }
     case "new": return .newWorkspace
     case "remove": return .removeWorkspace
     case "screenshot": return .screenshot(arg.flatMap(Int.init))
